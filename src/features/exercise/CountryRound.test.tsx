@@ -18,7 +18,12 @@ import { CountryRound, type CountryExerciseType } from './CountryRound';
  * стран подгружается отдельно, поэтому цель ждут, а не берут сразу.
  */
 function mapTarget(nameRu: string): Promise<HTMLElement> {
-  return screen.findByRole('button', { name: new RegExp(`^${nameRu}, `) });
+  // Слой стран грузится отдельно; под нагрузкой полного прогона секунды мало.
+  return screen.findByRole(
+    'button',
+    { name: new RegExp(`^${nameRu}, `) },
+    { timeout: 5000 },
+  );
 }
 
 function renderRound(

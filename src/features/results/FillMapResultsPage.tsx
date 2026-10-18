@@ -28,7 +28,7 @@ export function FillMapResultsPage({
   onExit,
 }: FillMapResultsPageProps) {
   const summary = summariseFillRound(round);
-  const reviewRegions = summary.regionIdsToReview.flatMap(
+  const reviewRegions = summary.idsToReview.flatMap(
     (regionId) => regions.find((region) => region.id === regionId) ?? [],
   );
 

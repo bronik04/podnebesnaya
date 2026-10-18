@@ -498,7 +498,7 @@ it('итог игры про страны считает страны, а не �
   const countryName = new RegExp(
     `^(${countries.map((country) => country.nameRu).join('|')}), `,
   );
-  await screen.findAllByRole('button', { name: countryName });
+  await screen.findAllByRole('button', { name: countryName }, { timeout: 5000 });
 
   vi.useFakeTimers();
   try {

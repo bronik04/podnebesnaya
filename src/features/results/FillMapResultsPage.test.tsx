@@ -20,7 +20,7 @@ function finishedRound(): FillRound {
 
   for (let i = 0; i < regions.length; i += 1) {
     round = answerFillRound(round, {
-      answeredRegionId: currentTarget(round).regionId,
+      answeredId: currentTarget(round).targetId,
       durationMs: 1000,
       answeredAt: '2026-08-04T10:00:00.000Z',
     }).round;
@@ -37,17 +37,17 @@ function roundWithMistake(): FillRound {
     random: createSeededRandom(1),
   });
 
-  const asked = currentTarget(round).regionId;
+  const asked = currentTarget(round).targetId;
   const other = regions.find((region) => region.id !== asked)!.id;
   round = answerFillRound(round, {
-    answeredRegionId: other,
+    answeredId: other,
     durationMs: 1000,
     answeredAt: '2026-08-04T10:00:00.000Z',
   }).round;
 
   while (!isFillRoundFinished(round)) {
     round = answerFillRound(round, {
-      answeredRegionId: currentTarget(round).regionId,
+      answeredId: currentTarget(round).targetId,
       durationMs: 1000,
       answeredAt: '2026-08-04T10:00:00.000Z',
     }).round;

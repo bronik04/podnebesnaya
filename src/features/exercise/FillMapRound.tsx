@@ -122,7 +122,7 @@ export function FillMapRound({
   const targetRegion =
     question === null
       ? null
-      : regions.find((region) => region.id === question.regionId)!;
+      : regions.find((region) => region.id === question.targetId)!;
   const attemptsLeft = MAX_ATTEMPTS_PER_REGION - round.usedAttempts;
   const closed = Object.keys(round.outcomes).length;
 
@@ -139,9 +139,9 @@ export function FillMapRound({
       return;
     }
 
-    const target = currentTarget(round).regionId;
+    const target = currentTarget(round).targetId;
     const result = answerFillRound(round, {
-      answeredRegionId: regionId,
+      answeredId: regionId,
       durationMs: Math.round(
         performance.now() - (regionStartedAt.current ?? startedAt),
       ),

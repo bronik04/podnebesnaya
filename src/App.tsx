@@ -645,7 +645,7 @@ export default function App() {
             startRound(
               'find-on-map',
               language,
-              summariseFillRound(fillRound).regionIdsToReview,
+              summariseFillRound(fillRound).idsToReview,
             )
           }
           onNewRound={() => startFillRound(language)}
