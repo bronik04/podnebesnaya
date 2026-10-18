@@ -537,15 +537,31 @@
    */
   --map-highlight-outline: var(--c-violet-600);
   --map-highlight-halo: var(--c-paper-50);
-  --map-highlight-halo-blur: 1.2px;
-  /* Ореол — три тени подряд: одна размытая тень даёт полупрозрачный край. */
-  --map-highlight-halo-filter: drop-shadow(0 0 var(--map-highlight-halo-blur) var(--map-highlight-halo))
-    drop-shadow(0 0 var(--map-highlight-halo-blur) var(--map-highlight-halo))
-    drop-shadow(0 0 var(--map-highlight-halo-blur) var(--map-highlight-halo));
+  /*
+   * Ореол линий и знаков — четыре тени без размытия, по сдвигу в каждую
+   * сторону. Размытая тень даёт полупрозрачный край, и тест токенов, который
+   * считает ореол сплошной бумагой, мерил бы не то, что на экране; сдвиги
+   * складываются в сплошное кольцо.
+   */
+  --map-highlight-halo-offset: 1.5px;
+  --map-highlight-halo-filter: drop-shadow(var(--map-highlight-halo-offset) 0 0 var(--map-highlight-halo))
+    drop-shadow(calc(-1 * var(--map-highlight-halo-offset)) 0 0 var(--map-highlight-halo))
+    drop-shadow(0 var(--map-highlight-halo-offset) 0 var(--map-highlight-halo))
+    drop-shadow(0 calc(-1 * var(--map-highlight-halo-offset)) 0 var(--map-highlight-halo));
+  /*
+   * У формы рельефа ореол — отдельный контур бумагой под обводкой, а не
+   * фильтр: фильтр обвёл бы и каждый штрих штриховки внутри формы, и полоса
+   * высоты под ней выбелилась бы. Ширина — обводка и по ореолу с каждой
+   * стороны, в единицах карты.
+   */
+  --map-highlight-halo-width: calc(var(--map-highlight-width) + 2.4);
   /* Река выделения толще обычной сильной: линия и есть весь объект. */
   --map-river-width-highlight: 4.5;
-  /* Отметка горы или впадины крупнее: в 2.4 раза знак виден на любой полосе. */
-  --map-point-highlight-scale: 2.4;
+  /*
+   * Отметка горы или впадины крупнее. Не больше 1.8: подпись точки стоит над
+   * знаком обычного размера, и при 2.4 вершина с ореолом налезала на неё.
+   */
+  --map-point-highlight-scale: 1.8;
 
   /*
    * Лента династий в режиме «История», печатается на бумаге. Полоса — значимая

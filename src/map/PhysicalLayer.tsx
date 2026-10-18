@@ -269,8 +269,25 @@ export function PhysicalLayer({
            */
           const isTarget = shape.featureId !== undefined;
           const answers = isTarget && onSelect !== undefined;
+          /*
+           * Ореол выделенной формы — контур бумагой под её обводкой. Отдельным
+           * путём, а не фильтром: фильтр обвёл бы и каждый штрих штриховки
+           * внутри формы. Исход выделение снимает, и ореол вместе с ним.
+           */
+          const showsHalo =
+            isTarget &&
+            (shape.featureId === selectedFeatureId || shape.featureId === hovered) &&
+            featureOutcomes[shape.featureId!] === undefined;
 
-          return (
+          return [
+            showsHalo ? (
+              <path
+                key={`${shape.key}-halo`}
+                className="relief-halo"
+                d={shape.d}
+                aria-hidden="true"
+              />
+            ) : null,
             <path
               key={shape.key}
               className="relief-shape"
@@ -297,8 +314,8 @@ export function PhysicalLayer({
                     }
                   : undefined
               }
-            />
-          );
+            />,
+          ];
         })}
       </g>
 

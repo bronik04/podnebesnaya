@@ -1514,9 +1514,19 @@ button.text:hover:enabled {
 .china-map .physical-layer .relief-shape[data-hovered='true'],
 .china-map .physical-layer .relief-shape:focus-visible {
   fill: url('#map-hatch-physical-highlight');
-  filter: var(--map-highlight-halo-filter);
   stroke: var(--map-highlight-outline);
   stroke-width: var(--map-highlight-width);
+}
+
+/*
+ * Ореол формы — контур бумагой под обводкой (см. `--map-highlight-halo-width`).
+ * Отдельным путём, а не фильтром: фильтр обвёл бы и штрихи штриховки.
+ */
+.china-map .physical-layer .relief-halo {
+  fill: none;
+  pointer-events: none;
+  stroke: var(--map-highlight-halo);
+  stroke-width: var(--map-highlight-halo-width);
 }
 
 /*
@@ -1644,6 +1654,7 @@ button.text:hover:enabled {
 }
 
 .china-map .physical-layer .river-line[data-outcome] {
+  filter: none;
   stroke-width: var(--map-river-width-strong);
 }
 
@@ -1661,9 +1672,11 @@ button.text:hover:enabled {
  * то правило, что ниже. Иначе у отвеченной реки, оставшейся в фокусе, цвет
  * фокуса заменялся бы цветом исхода — толщина у них и так одна, и видимого
  * признака фокуса не оставалось бы вовсе, хотя следующий Tab идёт от неё.
+ * Фокус выглядит так же, как наведение и выбор: фиолетовая обводка с ореолом.
  */
 .china-map .physical-layer .river-line:focus-visible {
-  stroke: var(--focus-on-paper);
+  filter: var(--map-highlight-halo-filter);
+  stroke: var(--map-highlight-outline);
 }
 
 /*
@@ -1722,12 +1735,14 @@ button.text:hover:enabled {
  * моря нет ни ступени, ни высоты, которыми его можно было бы поддержать.
  */
 .china-map .physical-layer .sea-shape[data-outcome='correct'] {
+  filter: none;
   fill: url('#map-hatch-physical-correct');
   stroke: var(--map-correct-mark);
   stroke-width: 1.2;
 }
 
 .china-map .physical-layer .sea-shape[data-outcome='incorrect'] {
+  filter: none;
   fill: url('#map-hatch-physical-incorrect');
   stroke: var(--map-incorrect-mark-relief);
   stroke-dasharray: 6 3;
@@ -1756,13 +1771,22 @@ button.text:hover:enabled {
 .china-map .physical-layer .point-hit:focus-visible + .point-mark-shape,
 .china-map .physical-layer .point-mark[data-hovered='true'] .point-mark-shape,
 .china-map .physical-layer .point-mark[data-selected='true'] .point-mark-shape {
-  fill: var(--map-highlight-outline);
   filter: var(--map-highlight-halo-filter);
   stroke: var(--map-highlight-outline);
-  stroke-width: 1.2;
   transform: scale(var(--map-point-highlight-scale));
   transform-box: fill-box;
   transform-origin: center;
+}
+
+/*
+ * Заливка различает вершину и впадину и при выделении: вершина остаётся
+ * светлой, впадина заливается тоном обводки. Направление треугольника в
+ * мелком масштабе читается хуже заливки.
+ */
+.china-map .physical-layer .point-hit:focus-visible + .point-mark-shape[data-point='depression'],
+.china-map .physical-layer .point-mark[data-hovered='true'] .point-mark-shape[data-point='depression'],
+.china-map .physical-layer .point-mark[data-selected='true'] .point-mark-shape[data-point='depression'] {
+  fill: var(--map-highlight-outline);
 }
 
 /*
