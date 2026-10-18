@@ -17,7 +17,16 @@ export type LandmarkLayerProps = {
   readonly onSelect?: (landmarkIds: readonly string[]) => void;
   readonly showsLabels?: boolean;
   readonly zoom?: number;
+  /**
+   * Исход ответа по звёздам: верная — нефритом, ошибочная — киноварью.
+   * Считает его раунд, а не карта: карта не знает, что верно.
+   */
+  readonly outcomes?: Readonly<Record<string, LandmarkOutcome>>;
 };
+
+export type LandmarkOutcome = 'correct' | 'incorrect';
+
+const NO_OUTCOMES: Readonly<Record<string, LandmarkOutcome>> = {};
 
 /**
  * Радиус звезды. Луч уходит наружу на 1,55 радиуса и внутрь на 0,65 — при 3,4
@@ -66,6 +75,7 @@ export function LandmarkLayer({
   onSelect,
   showsLabels = true,
   zoom = 1,
+  outcomes = NO_OUTCOMES,
 }: LandmarkLayerProps) {
   /*
    * Гроздь нужна там, где есть что объединять: цель нажатия или подсвеченный
@@ -99,8 +109,11 @@ export function LandmarkLayer({
   function landmarkMark(id: string, x: number, y: number) {
     const landmark = (pointById.get(id) as LandmarkPoint).landmark;
     const selected = landmark.id === selectedLandmarkId;
+    const outcome = outcomes[landmark.id];
     const label = `${landmark.nameRu}, ${landmark.nameZh}`;
-    const markRadius = selected ? SELECTED_MARK_RADIUS : MARK_RADIUS;
+    /* Звезда с исходом крупнее, как спрошенная: её ищут глазами по всей карте. */
+    const markRadius =
+      selected || outcome !== undefined ? SELECTED_MARK_RADIUS : MARK_RADIUS;
     /* Цель нажатия не меньше знака — как у городов. */
     const hitRadius = onSelect
       ? Math.max(
@@ -116,6 +129,7 @@ export function LandmarkLayer({
         data-landmark-id={landmark.id}
         data-landmark-kind={landmark.kind}
         data-selected={selected}
+        data-outcome={outcome}
       >
         <polygon
           className="landmark-mark"
@@ -188,6 +202,16 @@ export function LandmarkLayer({
         const askedInside = cluster.members.some(
           (member) => member.id === selectedLandmarkId,
         );
+        /*
+         * Гроздь — одна цель, и исход у неё один: верный, если в ней верный
+         * ответ, иначе ошибочный, если в неё промахнулись.
+         */
+        const memberOutcomes = cluster.members.map((member) => outcomes[member.id]);
+        const outcome = memberOutcomes.includes('correct')
+          ? 'correct'
+          : memberOutcomes.includes('incorrect')
+            ? 'incorrect'
+            : undefined;
         const names = cluster.members
           .map(
             (member) => (pointById.get(member.id) as LandmarkPoint).landmark.nameRu,
@@ -200,6 +224,7 @@ export function LandmarkLayer({
             cluster={cluster}
             hitRadius={TARGET_DIAMETER_UNITS / zoom / 2}
             selected={askedInside}
+            outcome={outcome}
             label={
               onSelect ? `Достопримечательности рядом: ${names}` : undefined
             }
@@ -209,7 +234,9 @@ export function LandmarkLayer({
                 points={starPoints(
                   cluster.x,
                   cluster.y,
-                  askedInside ? SELECTED_MARK_RADIUS : MARK_RADIUS,
+                  askedInside || outcome !== undefined
+                    ? SELECTED_MARK_RADIUS
+                    : MARK_RADIUS,
                 )}
                 aria-hidden="true"
               />

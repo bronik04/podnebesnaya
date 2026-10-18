@@ -32,6 +32,12 @@ export type RoundResultsPageProps = {
   readonly hasUnasked?: boolean;
   /** Как склонять число в подписи «Повторить ошибки». */
   readonly countWord?: (count: number) => string;
+  /**
+   * Куда ведёт ссылка «В справочник» у ошибки: переход на её карточку в атласе
+   * или `null`, если карточки нет (у стран, династий, коллекций). Решает
+   * `App`, единственное место навигации; не задано — ссылок нет вовсе.
+   */
+  readonly referenceOf?: (targetId: string) => (() => void) | null;
   readonly onRepeatMistakes: () => void;
   readonly onNewRound: () => void;
   readonly onExit: () => void;
@@ -50,6 +56,7 @@ export function RoundResultsPage({
   roundMap,
   hasUnasked = false,
   countWord = regionsWord,
+  referenceOf,
   onRepeatMistakes,
   onNewRound,
   onExit,
@@ -141,14 +148,37 @@ export function RoundResultsPage({
           </h2>
           {reviewTargets.length === 0 ? null : (
             <ol className="review-list">
-              {reviewTargets.map((target) => (
-                <li key={target.id}>
-                  <span className="review-list-name">{target.nameRu}</span>{' '}
-                  <span lang="zh-Hans" className="review-list-han">
-                    {target.nameZh}
-                  </span>
-                </li>
-              ))}
+              {reviewTargets.map((target) => {
+                const openReference = referenceOf?.(target.id) ?? null;
+
+                return (
+                  <li key={target.id}>
+                    <span className="review-list-name">{target.nameRu}</span>{' '}
+                    <span lang="zh-Hans" className="review-list-han">
+                      {target.nameZh}
+                    </span>
+                    {/*
+                      Видимая подпись одинакова у всех строк, поэтому имя цели
+                      добавлено скрыто: читалка экрана иначе прочла бы список
+                      одинаковых «В справочник». Видимая часть стоит в имени
+                      первой (WCAG 2.5.3).
+                    */}
+                    {openReference === null ? null : (
+                      <>
+                        {' '}
+                        <button
+                          type="button"
+                          className="review-list-reference"
+                          onClick={openReference}
+                        >
+                          В справочник{' '}
+                          <span className="visually-hidden">— {target.nameRu}</span>
+                        </button>
+                      </>
+                    )}
+                  </li>
+                );
+              })}
             </ol>
           )}
           <div className="results-actions">

@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
-import { CORRECT_PAUSE_MS, WRONG_PAUSE_MS } from './round-pace';
+import { CORRECT_PAUSE_MS } from './round-pace';
 import { expect, it, vi } from 'vitest';
 import {
   physicalFeatures,
@@ -9,6 +9,7 @@ import { createSeededRandom } from '../../domain/random';
 import { loadPhysicalMap } from '../../map/load-physical-map';
 import { createRound, physicalTarget } from '../../domain/round';
 import { PhysicalRound } from './PhysicalRound';
+import { passFeedback } from '../../test/round-pace';
 
 /*
  * Физический слой приезжает отдельным куском сборки, и карта берёт его
@@ -128,7 +129,7 @@ it('верный ответ на карте ведёт к следующему �
   }
 });
 
-it('после ошибки называет верный объект и едет дальше сам', () => {
+it('после ошибки называет верный объект и идёт дальше по «Дальше»', () => {
   vi.useFakeTimers();
   try {
     renderRound('find-on-map');
@@ -145,9 +146,7 @@ it('после ошибки называет верный объект и еде
     expect(stated).toContain(target.nameZh);
     expect(screen.queryByRole('button', { name: 'Далее' })).toBeNull();
 
-    act(() => {
-      vi.advanceTimersByTime(WRONG_PAUSE_MS);
-    });
+    passFeedback();
 
     expect(screen.queryByText('Этот объект стоит повторить')).toBeNull();
     expect(screen.getByTestId('exercise-target').textContent).not.toContain(
@@ -238,9 +237,7 @@ it('в вопросе о Янцзы попадание в ущелья тоже 
     const { container, onFinish } = renderRound('find-on-map', [yangtze]);
 
     answerOnLine(container, 'three-gorges');
-    act(() => {
-      vi.advanceTimersByTime(CORRECT_PAUSE_MS + WRONG_PAUSE_MS);
-    });
+    passFeedback();
 
     expect(onFinish).toHaveBeenCalledOnce();
     expect(onFinish.mock.calls[0][0][0].isCorrect).toBe(true);
@@ -256,9 +253,7 @@ it('в вопросе об ущельях попадание в другую ч�
     const { container, onFinish } = renderRound('find-on-map', [gorges]);
 
     answerOnLine(container, 'yangtze');
-    act(() => {
-      vi.advanceTimersByTime(CORRECT_PAUSE_MS + WRONG_PAUSE_MS);
-    });
+    passFeedback();
 
     expect(onFinish).toHaveBeenCalledOnce();
     expect(onFinish.mock.calls[0][0][0].isCorrect).toBe(false);

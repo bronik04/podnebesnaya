@@ -20,6 +20,7 @@ import {
   type Round,
 } from '../../domain/round';
 import { ChinaMap } from '../../map/ChinaMap';
+import type { LandmarkOutcome } from '../../map/LandmarkLayer';
 import { colocatedLandmarkIds } from '../../map/landmark-points';
 import type { MapZoom } from '../../map/MapControls';
 import { answerStatesFor, verdictOf } from './answer-states';
@@ -96,7 +97,7 @@ export function LandmarkRound({
   const [answeredId, setAnsweredId] = useState<string | null>(null);
   const [askedAt, setAskedAt] = useState(startClock);
   const [startedAt] = useState(startClock);
-  const { schedule } = useAutoAdvance();
+  const { schedule, waiting, proceed } = useAutoAdvance();
 
   const choicesByQuestion = useMemo(() => {
     const random = createSeededRandom(seed + 1);
@@ -189,6 +190,23 @@ export function LandmarkRound({
   const showsAnswer =
     round.status === 'feedback' && lastAttempt?.isCorrect === false;
 
+  /*
+   * Исход по звёздам: верная — нефритом, а если ученик промахнулся, его звезда
+   * — киноварью (решение владельца от 2026-10-18). Прежде верная звезда после
+   * ошибки не показывалась вовсе, и найти её на карте было нечем. В
+   * «назвать» киноварью помечается выбранный вариант: ученик видит, где на
+   * самом деле то, что он назвал.
+   */
+  const landmarkOutcomes = useMemo((): Readonly<Record<string, LandmarkOutcome>> => {
+    if (answersWithRegion || answeredId === null) {
+      return {};
+    }
+
+    return answeredId === target.id
+      ? { [target.id]: 'correct' }
+      : { [target.id]: 'correct', [answeredId]: 'incorrect' };
+  }, [answersWithRegion, answeredId, target.id]);
+
   const stageChoices: readonly StageChoice[] = showsChoices
     ? choicesByQuestion[round.currentIndex].map((choice) => ({
         id: choice.id,
@@ -239,6 +257,7 @@ export function LandmarkRound({
 
   return (
     <RoundStage
+      onContinue={waiting ? proceed : null}
       title={roundTitle(LANDMARK_CARD_IDS[exerciseType])}
       prompt={prompt}
       promptState={showsAnswer ? 'answer' : 'question'}
@@ -285,6 +304,7 @@ export function LandmarkRound({
         showsLandmarks={!answersWithRegion}
         selectedLandmarkId={showsChoices ? target.id : answeredId}
         showsLandmarkLabels={false}
+        landmarkOutcomes={landmarkOutcomes}
         onSelectLandmark={
           exerciseType === 'find-on-map' ? handleLandmarkSelect : undefined
         }

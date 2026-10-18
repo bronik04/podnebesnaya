@@ -107,7 +107,7 @@ export function PhysicalRound({
   const [answeredId, setAnsweredId] = useState<string | null>(null);
   const [askedAt, setAskedAt] = useState(startClock);
   const [startedAt] = useState(startClock);
-  const { schedule } = useAutoAdvance();
+  const { schedule, waiting, proceed } = useAutoAdvance();
 
   /*
    * Отвлекающие берутся из полного справочника, а не из пула раунда. Пул
@@ -240,6 +240,7 @@ export function PhysicalRound({
 
   return (
     <RoundStage
+      onContinue={waiting ? proceed : null}
       tools={
         onReliefStyleChange === undefined ? undefined : (
           <ReliefStyleToggle

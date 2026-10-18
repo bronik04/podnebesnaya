@@ -6,7 +6,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { citiesUpTo } from './content/cities';
+import { cityById, citiesUpTo } from './content/cities';
 import { collectionById } from './content/collections';
 import {
   physicalFeatures,
@@ -65,7 +65,7 @@ import {
   RoundResultsPage,
 } from './screens';
 import { hasUnaskedTargets } from './features/results/has-unasked';
-import type { Landmark } from './content/landmarks';
+import { landmarkById, type Landmark } from './content/landmarks';
 import { landmarksUpTo, type LandmarkSet } from './content/landmark-sets';
 import { countries, type Country } from './content/countries';
 import type { CountryExerciseType } from './features/exercise/exercise-modes';
@@ -251,6 +251,11 @@ export default function App() {
   const [countryExerciseType, setCountryExerciseType] =
     useState<CountryExerciseType>('find-on-map');
   const [selectedRegionId, setSelectedRegionId] = useState<string | null>(null);
+  /*
+   * Объект физической карты, на котором открыть атлас, — ссылка «В справочник»
+   * с итогов раунда по физической карте. Атлас берёт его только при открытии.
+   */
+  const [atlasFeatureId, setAtlasFeatureId] = useState<string | null>(null);
   const [zoom, setZoom] = useState<MapZoom>(1);
   const [collectionId, setCollectionId] = useState<string | null>(null);
   /*
@@ -319,6 +324,7 @@ export default function App() {
 
   function navigate(section: SiteSection) {
     if (section === 'atlas') {
+      setAtlasFeatureId(null);
       setScreen('atlas');
       return;
     }
@@ -774,6 +780,37 @@ export default function App() {
      * разойтись со списком ей теперь нечем.
      */
     const repeatIds = summary.targetsToReview.map((target) => target.id);
+    /*
+     * Ссылка «В справочник» у ошибки (решение владельца от 2026-10-18): регион
+     * открывает свою карточку в атласе, объект физической карты — свою на
+     * физическом виде, город и достопримечательность — карточку своего
+     * региона. У стран, династий и коллекций карточек нет — нет и ссылки.
+     */
+    function openAtlasOnRegion(regionId: string) {
+      setAtlasFeatureId(null);
+      setSelectedRegionId(regionId);
+      setScreen('atlas');
+    }
+
+    function referenceOf(targetId: string): (() => void) | null {
+      if (isPhysicalRound) {
+        return () => {
+          setSelectedRegionId(null);
+          setAtlasFeatureId(targetId);
+          setScreen('atlas');
+        };
+      }
+
+      const regionId = isCityRound
+        ? cityById(targetId)?.regionId
+        : isLandmarkRound
+          ? landmarkById(targetId)?.regionId
+          : roundKind === 'region'
+            ? targetId
+            : undefined;
+
+      return regionId === undefined ? null : () => openAtlasOnRegion(regionId);
+    }
     const repeatCities = cityPool.filter((city) => repeatIds.includes(city.id));
     const repeatFeatures = physicalPool.filter((feature) =>
       repeatIds.includes(feature.id),
@@ -822,6 +859,7 @@ export default function App() {
       <AppFrame fillsFrame={false} current={null} onNavigate={navigate}>
         <RoundResultsPage
           summary={summary}
+          referenceOf={referenceOf}
           targets={
             isCityRound
               ? cityPool
@@ -980,6 +1018,7 @@ export default function App() {
           onOpenCollection={openCollection}
           reliefStyle={reliefStyle}
           onReliefStyleChange={setReliefStyle}
+          initialFeatureId={atlasFeatureId}
         />
       ) : activeScreen === 'collections' ? (
         <CollectionsPage regions={regions} onOpenCollection={openCollection} />

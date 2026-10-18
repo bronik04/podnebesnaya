@@ -129,3 +129,35 @@ it('увеличивает спрошенную звезду', () => {
     spanOf(plain?.getAttribute('points')),
   );
 });
+
+/*
+ * После ответа звезда несёт исход: верная — нефритом, ошибочная — киноварью
+ * (решение владельца от 2026-10-18). Прежде верная звезда после ошибки не
+ * показывалась вовсе, и найти её на карте было нечем.
+ */
+it('помечает исход у одиночной звезды', () => {
+  const potala = LANDMARK_POINTS.find((one) => one.landmark.id === 'potala')!;
+  const other = LANDMARK_POINTS.find(
+    (one) => one.landmark.id !== 'potala' && one.landmark.regionId !== 'beijing',
+  )!;
+  const { container } = renderLayer({
+    points: [potala, other],
+    outcomes: { potala: 'correct', [other.landmark.id]: 'incorrect' },
+  });
+
+  expect(
+    container.querySelector('.landmark[data-landmark-id="potala"]'),
+  ).toHaveAttribute('data-outcome', 'correct');
+  expect(
+    container.querySelector(`.landmark[data-landmark-id="${other.landmark.id}"]`),
+  ).toHaveAttribute('data-outcome', 'incorrect');
+});
+
+it('гроздь берёт исход своего члена', () => {
+  renderLayer({ onSelect: () => {}, outcomes: { 'forbidden-city': 'correct' } });
+
+  const cluster = screen
+    .getByRole('button', { name: /Достопримечательности рядом: Запретный город/ })
+    .closest('.map-cluster');
+  expect(cluster).toHaveAttribute('data-outcome', 'correct');
+});

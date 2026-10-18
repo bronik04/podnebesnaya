@@ -115,3 +115,47 @@ it('слот настроек стоит в строке действий, а н
   expect(screen.getByText('рельеф').closest('.stage-strip')).not.toBeNull();
   expect(container.querySelector('.stage-map')).not.toHaveTextContent('рельеф');
 });
+
+/*
+ * После ошибки раунд стоит, пока ученик не пойдёт дальше (решение владельца
+ * от 2026-10-18): пробелом, Enter или кнопкой. Кнопка нужна мыши и пальцу,
+ * клавиши — тому, кто не хочет к ней тянуться.
+ */
+it('без ожидания кнопки «Дальше» нет', () => {
+  renderStage();
+
+  expect(screen.queryByRole('button', { name: /Дальше/ })).toBeNull();
+});
+
+it('после ошибки «Дальше» получает фокус и ведёт раунд дальше', () => {
+  const onContinue = vi.fn();
+  renderStage({ onContinue });
+
+  const next = screen.getByRole('button', { name: /Дальше/ });
+  expect(next).toHaveFocus();
+  expect(next).toHaveTextContent('пробел / Enter');
+
+  fireEvent.click(next);
+  expect(onContinue).toHaveBeenCalledOnce();
+});
+
+it('пробел и Enter ведут дальше, даже если фокус ушёл с кнопки', () => {
+  const onContinue = vi.fn();
+  renderStage({ onContinue });
+  (document.activeElement as HTMLElement | null)?.blur();
+
+  fireEvent.keyDown(window, { key: ' ' });
+  fireEvent.keyDown(window, { key: 'Enter' });
+
+  expect(onContinue).toHaveBeenCalledTimes(2);
+});
+
+it('прочие клавиши раунд дальше не ведут', () => {
+  const onContinue = vi.fn();
+  renderStage({ onContinue });
+
+  fireEvent.keyDown(window, { key: 'a' });
+  fireEvent.keyDown(window, { key: 'Tab' });
+
+  expect(onContinue).not.toHaveBeenCalled();
+});

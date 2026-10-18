@@ -83,7 +83,7 @@ export function CultureRound({
   const [mountedAt] = useState(startClock);
   /* Пока `null` — вопрос ещё не сменялся: считаем от начала раунда. */
   const [askedAt, setAskedAt] = useState<number | null>(null);
-  const { schedule } = useAutoAdvance();
+  const { schedule, waiting, proceed } = useAutoAdvance();
 
   /*
    * Снимки загружаются до первого вопроса: во время раунда сети быть не
@@ -222,6 +222,7 @@ export function CultureRound({
 
   return (
     <RoundStage
+      onContinue={waiting ? proceed : null}
       title={roundTitle('culture')}
       prompt={prompt}
       promptState={showsAnswer ? 'answer' : 'question'}

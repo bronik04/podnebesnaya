@@ -1,8 +1,8 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { expect, it, vi } from 'vitest';
 import { cultureCollectionsUpTo } from '../../content/culture-sets';
-import { CORRECT_PAUSE_MS, WRONG_PAUSE_MS } from './round-pace';
 import { CultureRound } from './CultureRound';
+import { passFeedback } from '../../test/round-pace';
 
 /*
  * Готовность снимков подставлена: в jsdom картинки отказывают в первые же
@@ -67,9 +67,7 @@ it('время первого ответа не считает прогрев с
     );
 
     fireEvent.click(screen.getAllByTestId('choice-option')[0]);
-    act(() => {
-      vi.advanceTimersByTime(CORRECT_PAUSE_MS + WRONG_PAUSE_MS);
-    });
+    passFeedback();
 
     expect(onFinish).toHaveBeenCalledOnce();
     const [attempt] = onFinish.mock.calls[0][0];

@@ -1,8 +1,9 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { expect, it, vi } from 'vitest';
-import { CORRECT_PAUSE_MS, WRONG_PAUSE_MS } from './round-pace';
+import { CORRECT_PAUSE_MS } from './round-pace';
 import { landmarksUpTo } from '../../content/landmark-sets';
 import { LandmarkRound, type LandmarkRoundProps } from './LandmarkRound';
+import { passFeedback } from '../../test/round-pace';
 
 function renderRound(overrides: Partial<LandmarkRoundProps> = {}) {
   return render(
@@ -104,9 +105,7 @@ it('считает промахом нажатие по чужой грозди'
         name: /Достопримечательности рядом:.*Запретный город/,
       }),
     );
-    act(() => {
-      vi.advanceTimersByTime(WRONG_PAUSE_MS);
-    });
+    passFeedback();
 
     expect(finish).toHaveBeenCalledWith([
       expect.objectContaining({ isCorrect: false }),
@@ -114,6 +113,32 @@ it('считает промахом нажатие по чужой грозди'
   } finally {
     vi.useRealTimers();
   }
+});
+
+/*
+ * После ошибки на карте видны обе звезды: верная — нефритом, своя — киноварью
+ * (решение владельца от 2026-10-18). Прежде верная не показывалась вовсе.
+ */
+it('после промаха помечает верную звезду и ошибочную', () => {
+  const { container } = renderRound({
+    landmarks: landmarksUpTo('monuments').filter((one) => one.id === 'potala'),
+  });
+
+  fireEvent.click(
+    screen.getByRole('button', {
+      name: /Достопримечательности рядом:.*Запретный город/,
+    }),
+  );
+
+  expect(
+    container.querySelector('.landmark[data-landmark-id="potala"]'),
+  ).toHaveAttribute('data-outcome', 'correct');
+  expect(
+    screen
+      .getByRole('button', { name: /Достопримечательности рядом:.*Запретный город/ })
+      .closest('.map-cluster'),
+  ).toHaveAttribute('data-outcome', 'incorrect');
+  expect(screen.getByRole('button', { name: /^Дальше/ })).toBeInTheDocument();
 });
 
 /* Карта в раундах по достопримечательностям чистая: решение владельца. */

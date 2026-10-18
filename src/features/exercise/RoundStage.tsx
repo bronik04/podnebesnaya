@@ -1,4 +1,4 @@
-import { useRef, type ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import { RoundStopwatch } from './RoundStopwatch';
 import { useFullscreen } from '../../ui/use-fullscreen';
 
@@ -16,6 +16,12 @@ export type RoundStageProps = {
    * вопросом. `null` или не передано — ответа ещё нет, печати нет.
    */
   readonly verdict?: 'correct' | 'incorrect' | null;
+  /**
+   * Раунд стоит после ошибки и ждёт ученика: передан — под исходом кнопка
+   * «Дальше», на ней фокус, а пробел и Enter ведут дальше откуда угодно, кроме
+   * другого управления. `null` или не передано — ждать нечего.
+   */
+  readonly onContinue?: (() => void) | null;
   /** Отметка `performance.now()` старта раунда — секундомеру строки. */
   readonly startedAt: number;
   /** Счёт и след раунда в служебной строке. */
@@ -63,6 +69,7 @@ export function RoundStage({
   prompt,
   promptState,
   verdict = null,
+  onContinue = null,
   startedAt,
   progress,
   choices,
@@ -72,6 +79,48 @@ export function RoundStage({
 }: RoundStageProps) {
   const stageRef = useRef<HTMLElement>(null);
   const fullscreen = useFullscreen(stageRef);
+  const continueRef = useRef<HTMLButtonElement>(null);
+  /*
+   * Обработчик — в ссылке: раунд пересоздаёт его на каждой отрисовке (а
+   * секундомер перерисовывает экран раз в секунду), и эффект по самому
+   * обработчику каждую секунду возвращал бы фокус на кнопку.
+   */
+  const continueHandler = useRef(onContinue);
+  useEffect(() => {
+    continueHandler.current = onContinue;
+  });
+  const isWaiting = onContinue !== null;
+
+  useEffect(() => {
+    if (!isWaiting) {
+      return;
+    }
+
+    continueRef.current?.focus();
+
+    function handleKeyDown(event: globalThis.KeyboardEvent) {
+      if ((event.key !== ' ' && event.key !== 'Enter') || event.repeat) {
+        return;
+      }
+
+      /* Пробел и Enter на другом управлении — его действие, а не «дальше». */
+      const target = event.target;
+      if (
+        target instanceof Element &&
+        target !== continueRef.current &&
+        target.closest('button, a[href], input, select, textarea, [role="button"]')
+      ) {
+        return;
+      }
+
+      /* Без этого Enter на самой кнопке дал бы ещё и щелчок — второй шаг. */
+      event.preventDefault();
+      continueHandler.current?.();
+    }
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isWaiting]);
 
   return (
     <main className="round-stage" ref={stageRef}>
@@ -97,6 +146,16 @@ export function RoundStage({
             </span>
             {VERDICTS[verdict].word}
           </p>
+        )}
+        {onContinue === null ? null : (
+          <button
+            type="button"
+            className="primary stage-continue"
+            ref={continueRef}
+            onClick={onContinue}
+          >
+            Дальше <span className="stage-continue-keys">пробел / Enter</span>
+          </button>
         )}
       </div>
       <div className="stage-map">{children}</div>

@@ -28,6 +28,8 @@ export type ClusterMarkProps = {
    * карты её знак живёт именно здесь.
    */
   readonly selected: boolean;
+  /** Исход ответа по грозди — её знак красится так же, как одиночный. */
+  readonly outcome?: 'correct' | 'incorrect';
   /** Знак свёрнутой грозди — рисуется в её середине. */
   readonly mark: ReactNode;
   readonly onActivate?: () => void;
@@ -50,6 +52,7 @@ export function ClusterMark({
   label,
   hitRadius,
   selected,
+  outcome,
   mark,
   onActivate,
 }: ClusterMarkProps) {
@@ -58,6 +61,7 @@ export function ClusterMark({
       className="map-cluster"
       data-cluster-id={cluster.id}
       data-selected={selected}
+      data-outcome={outcome}
     >
       {mark}
       <circle

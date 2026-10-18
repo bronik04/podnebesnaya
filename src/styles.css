@@ -1376,6 +1376,42 @@ button.text:hover:enabled {
   stroke-width: 1.5;
 }
 
+/*
+ * Исход ответа по звезде (решение владельца от 2026-10-18): верная — нефритом,
+ * ошибочная — киноварью. Каналов два, как у исходов на карте регионов: цвет и
+ * кольцо — сплошное у верной, пунктирное у ошибочной. Правила стоят после
+ * выбора: специфичность у них равная, и исход побеждает выбор.
+ */
+.china-map .landmark[data-outcome='correct'] .landmark-mark,
+.china-map .map-cluster[data-outcome='correct'] .landmark-mark {
+  fill: var(--map-correct);
+  stroke: var(--surface-paper-bright);
+  stroke-width: 2;
+}
+
+.china-map .landmark[data-outcome='correct'] .landmark-halo,
+.china-map .map-cluster[data-outcome='correct'] .cluster-halo {
+  fill: none;
+  stroke: var(--map-correct);
+  stroke-dasharray: none;
+  stroke-width: 1.5;
+}
+
+.china-map .landmark[data-outcome='incorrect'] .landmark-mark,
+.china-map .map-cluster[data-outcome='incorrect'] .landmark-mark {
+  fill: var(--map-incorrect-mark);
+  stroke: var(--surface-paper-bright);
+  stroke-width: 2;
+}
+
+.china-map .landmark[data-outcome='incorrect'] .landmark-halo,
+.china-map .map-cluster[data-outcome='incorrect'] .cluster-halo {
+  fill: none;
+  stroke: var(--map-incorrect-mark);
+  stroke-dasharray: 3 2;
+  stroke-width: 1.5;
+}
+
 .china-map .landmark-hit {
   fill: transparent;
 }
@@ -2149,6 +2185,29 @@ ol.review-list li::before {
 .review-list-han {
   font-size: var(--t-size-20);
   font-weight: var(--t-weight-bold);
+}
+
+/*
+ * «В справочник» — переход, а не действие: подчёркнутое слово в конце строки,
+ * без рамки. Высота цели — не меньше `--target-min`, хотя знак мельче имени.
+ */
+.review-list-reference {
+  background: none;
+  border: none;
+  color: var(--text-on-ground);
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--t-size-small);
+  margin-inline-start: auto;
+  min-height: var(--target-min);
+  padding: 0;
+  text-decoration: underline;
+  text-decoration-thickness: var(--border-hair);
+  text-underline-offset: 0.2em;
+}
+
+.review-list-reference:hover {
+  color: var(--accent-on-ground);
 }
 
 .results-actions {
@@ -4707,6 +4766,24 @@ button.chip[aria-pressed='true'] {
   block-size: 40px;
   font-size: var(--t-size-20);
   inline-size: 40px;
+}
+
+/*
+ * «Дальше» после ошибки — главная кнопка экрана: другого шага, пока раунд
+ * стоит, нет. Подсказка клавиш — мельче, в той же строке: кнопку видят мышь и
+ * палец, клавиши — те, кому тянуться к ней незачем.
+ */
+.stage-continue {
+  align-items: baseline;
+  display: flex;
+  gap: var(--s-2);
+  justify-content: center;
+  margin: var(--s-3) auto 0;
+}
+
+.stage-continue-keys {
+  font-size: var(--t-size-caption);
+  font-weight: var(--t-weight-regular);
 }
 
 /*

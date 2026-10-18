@@ -10,7 +10,7 @@ import mapMarkup from '../../public/maps/china-provinces.svg?raw';
 import type { Region } from '../content/types';
 import type { RegionOutcome } from '../domain/fill-round';
 import { CityLayer } from './CityLayer';
-import { LandmarkLayer } from './LandmarkLayer';
+import { LandmarkLayer, type LandmarkOutcome } from './LandmarkLayer';
 import type { FeatureOutcome } from './PhysicalLayer';
 import { cityPointsOfRegions } from './city-points';
 import type { MapCluster } from './cluster';
@@ -133,6 +133,8 @@ type ChinaMapProps = {
    */
   readonly onSelectLandmark?: (landmarkIds: readonly string[]) => void;
   readonly showsLandmarkLabels?: boolean;
+  /** Исход ответа по звёздам: верная — нефритом, ошибочная — киноварью. */
+  readonly landmarkOutcomes?: Readonly<Record<string, LandmarkOutcome>>;
   /**
    * Слой сопредельных государств. Включается только в играх по странам: на всех
    * прочих поверхностях за границей Китая пусто, и так и должно остаться.
@@ -282,6 +284,7 @@ export function ChinaMap({
   selectedLandmarkId = null,
   onSelectLandmark,
   showsLandmarkLabels = true,
+  landmarkOutcomes,
   showsCallouts = true,
   showsCalloutLabels,
   selectedFeatureId = null,
@@ -1012,6 +1015,7 @@ export function ChinaMap({
                 selectedLandmarkId={selectedLandmarkId}
                 onSelect={onSelectLandmark}
                 showsLabels={showsLandmarkLabels}
+                outcomes={landmarkOutcomes}
                 zoom={view.zoom}
               />,
               citySvg,

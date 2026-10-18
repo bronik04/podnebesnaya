@@ -88,7 +88,7 @@ export function ExerciseRound({
   const [answeredRegionId, setAnsweredRegionId] = useState<string | null>(null);
   const [askedAt, setAskedAt] = useState(() => performance.now());
   const [startedAt] = useState(() => performance.now());
-  const { schedule } = useAutoAdvance();
+  const { schedule, waiting, proceed } = useAutoAdvance();
 
   // Варианты считаются один раз на раунд: иначе перерисовка тасовала бы их
   // прямо под курсором.
@@ -225,6 +225,7 @@ export function ExerciseRound({
 
   return (
     <RoundStage
+      onContinue={waiting ? proceed : null}
       title={roundTitle(question.exerciseType)}
       prompt={prompt}
       promptState={showsAnswer ? 'answer' : 'question'}

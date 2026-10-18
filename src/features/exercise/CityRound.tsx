@@ -106,7 +106,7 @@ export function CityRound({
   const [answeredId, setAnsweredId] = useState<string | null>(null);
   const [askedAt, setAskedAt] = useState(startClock);
   const [startedAt] = useState(startClock);
-  const { schedule } = useAutoAdvance();
+  const { schedule, waiting, proceed } = useAutoAdvance();
 
   /*
    * Отвлекающие берутся из всего справочника, а не из пула раунда: в повторе
@@ -238,6 +238,7 @@ export function CityRound({
 
   return (
     <RoundStage
+      onContinue={waiting ? proceed : null}
       title={roundTitle(CITY_CARD_IDS[exerciseType])}
       prompt={prompt}
       promptState={showsAnswer ? 'answer' : 'question'}
