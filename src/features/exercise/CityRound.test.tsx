@@ -1,10 +1,17 @@
-import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { CORRECT_PAUSE_MS, WRONG_PAUSE_MS } from './round-pace';
-import { cities as allCities, citiesUpTo } from '../../content/cities';
+import { citiesUpTo } from '../../content/cities';
 import { regions } from '../../content/regions';
 import type { City } from '../../content/types';
 import type { ExerciseType } from '../../domain/round';
 import { CityRound } from './CityRound';
+
+/** Ответ — нажатием на цель карты: её доступное имя — «название, 中文». */
+function mapTarget(nameRu: string): HTMLElement {
+  const escaped = nameRu.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+  return screen.getByRole('button', { name: new RegExp(`^${escaped}, `) });
+}
 
 const capitals = citiesUpTo('capital');
 const shortPool = capitals.slice(0, 3);
@@ -27,14 +34,6 @@ function renderRound(
   );
 }
 
-/** Список — в панели оболочки: перед ответом её нужно открыть. */
-function openAnswerList() {
-  const toggle = screen.getByRole('button', { name: 'Ответить из списка' });
-  if (toggle.getAttribute('aria-expanded') !== 'true') {
-    fireEvent.click(toggle);
-  }
-}
-
 function asked(): string {
   return screen.getByTestId('exercise-target').textContent ?? '';
 }
@@ -48,10 +47,7 @@ it('спрашивает город по имени и принимает отв
   try {
     renderRound();
     const before = asked();
-    openAnswerList();
-    const list = screen.getByRole('list', { name: 'Список городов' });
-
-    fireEvent.click(within(list).getByRole('button', { name: askedCity().nameRu }));
+    fireEvent.click(mapTarget(askedCity().nameRu));
     act(() => {
       vi.advanceTimersByTime(CORRECT_PAUSE_MS);
     });
@@ -88,9 +84,7 @@ it('после ошибки называет верный ответ и едет
     const target = askedCity();
     const other = capitals.find((city) => city.id !== target.id)!;
 
-    openAnswerList();
-    const list = screen.getByRole('list', { name: 'Список городов' });
-    fireEvent.click(within(list).getByRole('button', { name: other.nameRu }));
+    fireEvent.click(mapTarget(other.nameRu));
 
     expect(screen.getByText('Этот город стоит повторить')).toBeTruthy();
     expect(asked()).toContain(target.nameRu);
@@ -150,9 +144,7 @@ it('сообщает о завершении раунда', () => {
 
     for (let index = 0; index < shortPool.length; index += 1) {
       const target = shortPool.find((city) => city.nameRu === asked())!;
-      openAnswerList();
-      const list = screen.getByRole('list', { name: 'Список городов' });
-      fireEvent.click(within(list).getByRole('button', { name: target.nameRu }));
+      fireEvent.click(mapTarget(target.nameRu));
       act(() => {
         vi.advanceTimersByTime(CORRECT_PAUSE_MS);
       });
@@ -196,7 +188,6 @@ it('в «город — регион» после ошибки называет 
   }
 });
 
-
 /*
  * В «найти город» подпись выдавала бы ответ наведением курсора — точку
  * достаточно было бы обвести мышью. Подписи не спрятаны стилем, а не
@@ -231,19 +222,3 @@ it('в повторе одного города вариантов всё рав
   expect(screen.getAllByTestId('choice-option')).toHaveLength(4);
 });
 
-it('в повторе одного города список предлагает весь справочник', () => {
-  const { container } = renderRound('find-on-map', SINGLE_POOL);
-  openAnswerList();
-
-  /* Карта рисует города справочника, а не пула: ответить можно по любому. */
-  const onMap = new Set(
-    [...container.querySelectorAll('[data-city-id]')].map(
-      (mark) => mark.getAttribute('data-city-id') ?? '',
-    ),
-  );
-  expect(onMap.size).toBeGreaterThan(SINGLE_POOL.length);
-
-  expect(
-    within(screen.getByRole('list', { name: 'Список городов' })).getAllByRole('button'),
-  ).toHaveLength(allCities.length);
-});

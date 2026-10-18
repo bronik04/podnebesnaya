@@ -17,7 +17,6 @@ import {
   type Round,
 } from '../../domain/round';
 import { ChinaMap } from '../../map/ChinaMap';
-import { RegionAnswerList } from '../../map/RegionAnswerList';
 import { answerStatesFor, verdictOf } from './answer-states';
 import {
   EXERCISE_MODES,
@@ -250,16 +249,6 @@ export function ExerciseRound({
             onChoose={answer}
           />
         )
-      }
-      answerList={
-        isMapAnswer ? (
-          <RegionAnswerList
-            regions={allRegions}
-            selectedRegionId={answeredRegionId}
-            onSelect={answer}
-            answerStates={answerStates}
-          />
-        ) : undefined
       }
       onExit={onExit}
     >

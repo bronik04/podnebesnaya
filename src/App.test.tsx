@@ -11,6 +11,7 @@ import { MISS_FLASH_MS } from './features/exercise/FillMapRound';
 import { afterEach, beforeEach } from 'vitest';
 import App from './App';
 import { cityById } from './content/cities';
+import { countries } from './content/countries';
 import { regions } from './content/regions';
 import type { Region } from './content/types';
 
@@ -415,15 +416,10 @@ function askedFillRegion(): Region {
 }
 
 function clickFillRegion(region: Region): void {
-  const toggle = screen.getByRole('button', { name: 'Ответить из списка' });
-  if (toggle.getAttribute('aria-expanded') !== 'true') {
-    fireEvent.click(toggle);
-  }
-
   // У закрытого региона к имени приписан исход, поэтому имя ищется по началу.
   fireEvent.click(
     screen.getByRole('button', {
-      name: new RegExp(`^${region.nameRu} \\(${region.nameZh}\\)`),
+      name: new RegExp(`^${region.nameRu}, ${region.nameZh}`),
     }),
   );
 }
@@ -495,58 +491,23 @@ it('итог заполнения ведёт в раунд по ошибочны
   expect(screen.getByText(/Вопрос 1 из 1/)).toBeInTheDocument();
 }, 20_000);
 
-it('запускает игру про соседей и спрашивает тридцать регионов', async () => {
-  render(<App />);
-
-  fireEvent.click(screen.getByRole('button', { name: /Соседи региона/ }));
-  fireEvent.click(screen.getByRole('button', { name: 'Начать' }));
-  await settle();
-
-  expect(screen.getByText(/Вопрос 1 из 30/)).toBeInTheDocument();
-  expect(screen.getByText('Нажмите всех соседей')).toBeInTheDocument();
-});
-
-it('итог игры про соседей ведёт в неё же, а не в «найти на карте»', async () => {
-  render(<App />);
-  fireEvent.click(screen.getByRole('button', { name: /Соседи региона/ }));
-  fireEvent.click(screen.getByRole('button', { name: 'Начать' }));
-  await settle();
-
-  vi.useFakeTimers();
-  try {
-    /* Тридцать пустых ответов: каждый — ошибка, разбор держится и гаснет сам. */
-    for (let index = 0; index < 30; index += 1) {
-      fireEvent.click(screen.getByRole('button', { name: 'Готово' }));
-      act(() => {
-        vi.advanceTimersByTime(WRONG_PAUSE_MS);
-      });
-    }
-  } finally {
-    vi.useRealTimers();
-  }
-  await settle();
-
-  fireEvent.click(screen.getByRole('button', { name: /Повторить ошибки/ }));
-  await settle();
-
-  expect(screen.getByText('Нажмите всех соседей')).toBeInTheDocument();
-}, 20_000);
-
 it('итог игры про страны считает страны, а не регионы', async () => {
   render(<App />);
   fireEvent.click(screen.getByRole('button', { name: /Найти страну/ }));
   fireEvent.click(screen.getByRole('button', { name: 'Начать' }));
   await settle();
 
-  /* Список ответов живёт в панели оболочки: её нужно открыть. */
-  fireEvent.click(screen.getByRole('button', { name: 'Ответить из списка' }));
+  /* Слой стран подгружается отдельно: ответы ждут, пока он встанет. */
+  const countryName = new RegExp(
+    `^(${countries.map((country) => country.nameRu).join('|')}), `,
+  );
+  await screen.findAllByRole('button', { name: countryName });
 
   vi.useFakeTimers();
   try {
     /* Четырнадцать ответов подряд, какие попались: важен итог, а не счёт. */
     for (let index = 0; index < 14; index += 1) {
-      const list = screen.getByRole('list', { name: 'Список стран' });
-      const buttons = within(list).getAllByRole('button');
+      const buttons = screen.getAllByRole('button', { name: countryName });
       fireEvent.click(buttons[index % buttons.length]);
       act(() => {
         vi.advanceTimersByTime(WRONG_PAUSE_MS);

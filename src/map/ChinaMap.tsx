@@ -31,11 +31,7 @@ import {
 import { MapControls, ZOOM_LEVELS, type MapZoom } from './MapControls';
 import { MapDefs } from './MapDefs';
 import { MEMBERSHIP_LABELS } from './membership';
-import {
-  NEIGHBOUR_LABELS,
-  OUTCOME_LABELS,
-  type NeighbourState,
-} from './outcome-labels';
+import { OUTCOME_LABELS } from './outcome-labels';
 import {
   PROGRESS_STATE_LABELS,
   type RegionProgressState,
@@ -82,16 +78,13 @@ type ChinaMapProps = {
    * успел с этим регионом.
    * `membership` — карта коллекции: цвет означает, входит ли регион в неё.
    * `physical` — физическая: заливка означает ступень рельефа, поверх неё реки.
-   * `neighbours` — игра «соседи»: до ответа видны отметки, после — исход
-   * разбора у каждой области.
    */
   readonly variant?:
     | 'reference'
     | 'fill'
     | 'progress'
     | 'membership'
-    | 'physical'
-    | 'neighbours';
+    | 'physical';
   readonly progressStates?: Readonly<Record<string, RegionProgressState>>;
   /**
    * Регионы коллекции для `variant="membership"`. Пустой список — законное
@@ -108,12 +101,6 @@ type ChinaMapProps = {
    */
   readonly usage?: 'browse' | 'answer';
   readonly outcomes?: Readonly<Record<string, RegionOutcome>>;
-  /**
-   * Состояния игры «соседи»: до ответа отметка, после — найден, пропущен или
-   * лишний. Отдельно от `outcomes`: там исход одного спрошенного региона,
-   * здесь — целого множества.
-   */
-  readonly neighbourStates?: Readonly<Record<string, NeighbourState>>;
   /**
    * Что показать поверх заливки. `miss` — вспышка на промахе, `reveal` —
    * показ региона, который так и не нашли. Виды разные, потому что живут
@@ -216,7 +203,6 @@ const NO_ANSWER_STATES: Readonly<Record<string, AnswerState>> = {};
 const NO_OUTCOMES: Readonly<Record<string, RegionOutcome>> = {};
 const NO_PROGRESS_STATES: Readonly<Record<string, RegionProgressState>> = {};
 const NO_MEMBERS: readonly string[] = [];
-const NO_NEIGHBOUR_STATES: Readonly<Record<string, NeighbourState>> = {};
 const NO_FEATURE_OUTCOMES: Readonly<Record<string, FeatureOutcome>> = {};
 
 /**
@@ -275,7 +261,6 @@ export function ChinaMap({
   onZoomChange,
   questionKey,
   answerStates = NO_ANSWER_STATES,
-  neighbourStates = NO_NEIGHBOUR_STATES,
   showsCountries = false,
   selectedCountryId = null,
   onSelectCountry,
@@ -588,13 +573,6 @@ export function ChinaMap({
         delete area.dataset.outcome;
       }
 
-      const neighbourState = neighbourStates[regionId];
-      if (neighbourState) {
-        area.dataset.neighbourState = neighbourState;
-      } else {
-        delete area.dataset.neighbourState;
-      }
-
       /*
        * Состояние освоенности ставится всем областям сразу: «не тронут» — тоже
        * состояние, и без него регион остался бы без заливки и без слова.
@@ -628,9 +606,7 @@ export function ChinaMap({
       if (label) {
         const suffix = outcome
           ? OUTCOME_LABELS[outcome]
-          : neighbourState
-            ? NEIGHBOUR_LABELS[neighbourState]
-            : progressState
+          : progressState
             ? PROGRESS_STATE_LABELS[progressState]
             : membership
               ? MEMBERSHIP_LABELS[membership]
@@ -656,7 +632,6 @@ export function ChinaMap({
     interactive,
     memberRegionIds,
     opensRegion,
-    neighbourStates,
     outcomes,
     paused,
     progressStates,

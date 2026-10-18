@@ -22,7 +22,6 @@ import {
 import { ChinaMap } from '../../map/ChinaMap';
 import { COUNTRY_FRAME_OUTSET } from '../../map/target-size';
 import { answerStatesFor, verdictOf } from './answer-states';
-import { CountryAnswerList } from './CountryAnswerList';
 import {
   COUNTRY_MODES,
   type CountryExerciseType,
@@ -63,7 +62,7 @@ export type CountryRoundProps = {
  *
  * | Игра | Вопрос | Ответ |
  * | --- | --- | --- |
- * | `find-on-map` | имя страны | нажатие по её контуру или выбор из списка |
+ * | `find-on-map` | имя страны | нажатие по её контуру |
  * | `name-target` | подсвеченная страна | одно из четырёх имён |
  *
  * Третьей игры, как у городов, здесь нет: связать страну со вторым каталогом
@@ -232,24 +231,6 @@ export function CountryRound({
             onChoose={answer}
           />
         ) : undefined
-      }
-      answerList={
-        showsChoices ? undefined : (
-          /*
-           * Список тоже берёт весь справочник, а не пул раунда, и по тому же
-           * доводу, что отвлекающие: в повторе одной ошибки пул из одной
-           * страны дал бы список из одной кнопки — она же ответ. Спрашиваются
-           * при этом только страны пула.
-           */
-          <CountryAnswerList
-            countries={allCountries}
-            language={question.language}
-            answeredId={answeredId}
-            targetId={targetCountry.id}
-            disabled={round.status !== 'ready'}
-            onSelect={handleCountrySelect}
-          />
-        )
       }
       onExit={onExit}
     >

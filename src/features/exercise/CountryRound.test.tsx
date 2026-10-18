@@ -4,7 +4,6 @@ import {
   render,
   screen,
   waitFor,
-  within,
 } from '@testing-library/react';
 import { countries } from '../../content/countries';
 import { CORRECT_PAUSE_MS } from './round-pace';
@@ -13,6 +12,14 @@ import {
   MAP_VIEWBOX_WIDTH,
 } from '../../map/target-size';
 import { CountryRound, type CountryExerciseType } from './CountryRound';
+
+/**
+ * Ответ — нажатием на страну карты: её доступное имя — «название, 中文». Слой
+ * стран подгружается отдельно, поэтому цель ждут, а не берут сразу.
+ */
+function mapTarget(nameRu: string): Promise<HTMLElement> {
+  return screen.findByRole('button', { name: new RegExp(`^${nameRu}, `) });
+}
 
 function renderRound(
   exerciseType: CountryExerciseType = 'find-on-map',
@@ -30,18 +37,6 @@ function renderRound(
   );
 }
 
-/** Список — в панели оболочки: перед ответом её нужно открыть. */
-function openAnswerList() {
-  const toggle = screen.getByRole('button', { name: 'Ответить из списка' });
-  if (toggle.getAttribute('aria-expanded') !== 'true') {
-    fireEvent.click(toggle);
-  }
-}
-
-function list() {
-  return within(screen.getByRole('list', { name: 'Список стран' }));
-}
-
 function asked(): string {
   return screen.getByTestId('exercise-target').textContent ?? '';
 }
@@ -53,14 +48,14 @@ it('спрашивает все четырнадцать стран', () => {
   expect(countries.map((country) => country.nameRu)).toContain(asked());
 });
 
-it('отвечает из списка и идёт дальше сам', () => {
+it('отвечает нажатием на карте и идёт дальше сам', async () => {
+  renderRound();
+  const target = countries.find((country) => country.nameRu === asked())!;
+  const button = await mapTarget(target.nameRu);
+
   vi.useFakeTimers();
   try {
-    renderRound();
-    openAnswerList();
-
-    const target = countries.find((country) => country.nameRu === asked())!;
-    fireEvent.click(list().getByRole('button', { name: target.nameRu }));
+    fireEvent.click(button);
 
     /* Верный ответ виден полсекунды, потом раунд едет дальше сам. */
     act(() => {
@@ -73,13 +68,12 @@ it('отвечает из списка и идёт дальше сам', () => {
   }
 });
 
-it('после ошибки называет верную страну', () => {
+it('после ошибки называет верную страну', async () => {
   renderRound();
-  openAnswerList();
 
   const target = countries.find((country) => country.nameRu === asked())!;
   const other = countries.find((country) => country.id !== target.id)!;
-  fireEvent.click(list().getByRole('button', { name: other.nameRu }));
+  fireEvent.click(await mapTarget(other.nameRu));
 
   expect(asked()).toContain(target.nameRu);
   expect(asked()).toContain(target.nameZh);
@@ -90,14 +84,6 @@ it('в «назвать страну» вопрос не называет стр
 
   expect(asked()).toBe('Страна на карте');
   expect(screen.getAllByTestId('choice-option')).toHaveLength(4);
-});
-
-it('в «назвать страну» списка ответов нет: отвечают кнопкой', () => {
-  renderRound('name-target');
-
-  expect(
-    screen.queryByRole('button', { name: 'Ответить из списка' }),
-  ).toBeNull();
 });
 
 it('в повторе одной страны вариантов всё равно четыре', () => {
@@ -118,27 +104,6 @@ it('в повторе одной страны вариантов всё равн
   /* Спрашивается одна страна, но отвлекающие берутся из всего справочника. */
   expect(screen.getByText('Вопрос 1 из 1')).toBeInTheDocument();
   expect(screen.getAllByTestId('choice-option')).toHaveLength(4);
-});
-
-it('в повторе одной страны список остаётся полным: одна кнопка была бы ответом', () => {
-  const single = countries.filter((country) => country.id === 'bhutan');
-
-  render(
-    <CountryRound
-      countries={single}
-      exerciseType="find-on-map"
-      language="ru"
-      roundId="r1"
-      seed={1}
-      onFinish={() => {}}
-      onExit={() => {}}
-    />,
-  );
-  openAnswerList();
-
-  /* Спрашивается одна страна, но выбирают из всех четырнадцати. */
-  expect(screen.getByText('Вопрос 1 из 1')).toBeInTheDocument();
-  expect(list().getAllByRole('button')).toHaveLength(countries.length);
 });
 
 /*

@@ -29,14 +29,6 @@ function renderRound(
   );
 }
 
-/** Список — в панели оболочки: перед ответом её нужно открыть. */
-function openAnswerList() {
-  const toggle = screen.getByRole('button', { name: 'Ответить из списка' });
-  if (toggle.getAttribute('aria-expanded') !== 'true') {
-    fireEvent.click(toggle);
-  }
-}
-
 /** Название административного центра региона: оно живёт в справочнике городов. */
 function capitalOf(region: Region): string {
   return cityById(region.capitalCityId)!.nameRu;
@@ -55,21 +47,19 @@ function askedRegion(): Region {
 }
 
 function answerCorrectly() {
-  openAnswerList();
   const target = askedRegion();
 
   fireEvent.click(
-    screen.getByRole('button', { name: `${target.nameRu} (${target.nameZh})` }),
+    screen.getByRole('button', { name: `${target.nameRu}, ${target.nameZh}` }),
   );
 }
 
 function answerWrongly() {
-  openAnswerList();
   const target = askedRegion();
   const other = regions.find((region) => region.id !== target.id)!;
 
   fireEvent.click(
-    screen.getByRole('button', { name: `${other.nameRu} (${other.nameZh})` }),
+    screen.getByRole('button', { name: `${other.nameRu}, ${other.nameZh}` }),
   );
 }
 
@@ -231,18 +221,6 @@ it('первый фокусируемый элемент — ответ, а не
   expect(first).toHaveAttribute('data-region-id');
 });
 
-it('«Прервать раунд» стоит в разметке после списка ответов', () => {
-  renderRound();
-  openAnswerList();
-
-  const list = screen.getByRole('list', { name: 'Список регионов карты' });
-  const abort = screen.getByRole('button', { name: 'Прервать раунд' });
-
-  expect(
-    list.compareDocumentPosition(abort) & Node.DOCUMENT_POSITION_FOLLOWING,
-  ).toBeTruthy();
-});
-
 it('не печатает названия выносок: иначе Макао и Гонконг — готовые ответы', () => {
   const { container } = renderRound();
 
@@ -369,17 +347,6 @@ it('в повторе одного региона столицу тоже выб
   renderRound(['match-pair'], 'ru', () => {}, SINGLE_POOL);
 
   expect(screen.getAllByTestId('choice-option')).toHaveLength(4);
-});
-
-it('в повторе одного региона список предлагает все области карты', () => {
-  renderRound(['find-on-map'], 'ru', () => {}, SINGLE_POOL);
-  openAnswerList();
-
-  expect(
-    within(screen.getByRole('list', { name: 'Список регионов карты' })).getAllByRole(
-      'button',
-    ),
-  ).toHaveLength(regions.length);
 });
 
 it('в повторе одного региона карта называет остальные области по-русски', () => {

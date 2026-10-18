@@ -51,7 +51,6 @@ export type HomePageProps = {
     regionIds: readonly string[] | null,
   ) => void;
   readonly onStartFillRound: (language: QuestionLanguage) => void;
-  readonly onStartNeighboursRound: (language: QuestionLanguage) => void;
   readonly onStartCountryRound: (
     exerciseType: CountryExerciseType,
     language: QuestionLanguage,
@@ -203,7 +202,6 @@ export function HomePage({
   attempts,
   onStartRound,
   onStartFillRound,
-  onStartNeighboursRound,
   onStartCountryRound,
   onStartCityRound,
   onStartLandmarkRound,
@@ -233,8 +231,6 @@ export function HomePage({
       onStartRound(card.exerciseType, language, null);
     } else if (card.kind === 'fill') {
       onStartFillRound(language);
-    } else if (card.kind === 'neighbours') {
-      onStartNeighboursRound(language);
     } else if (card.kind === 'country') {
       onStartCountryRound(card.exerciseType, language);
     } else if (card.kind === 'city') {

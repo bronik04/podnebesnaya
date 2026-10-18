@@ -10,7 +10,6 @@
     "validate:fonts": "tsx scripts/validate-fonts.ts",
     "generate:callouts": "tsx scripts/generate-callouts.ts",
     "generate:palette": "tsx scripts/generate-region-palette.ts",
-    "generate:neighbours": "tsx scripts/generate-region-neighbours.ts",
     "generate:hit-targets": "tsx scripts/generate-hit-targets.ts",
     "generate:fonts": "tsx scripts/generate-fonts.ts",
     "extract:canal": "tsx scripts/extract-canal-source.ts",

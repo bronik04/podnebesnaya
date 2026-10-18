@@ -39,39 +39,3 @@ it('закрытый регион не отвечает и выключен', ()
   expect(button).toHaveAccessibleName('Сычуань (四川省) — взят с первой попытки');
 });
 
-it('называет отметку словом, а не только цветом', () => {
-  render(
-    <RegionAnswerList
-      regions={regions}
-      selectedRegionId={null}
-      onSelect={() => {}}
-      neighbourStates={{ hubei: 'marked' }}
-    />,
-  );
-
-  const button = screen.getByRole('button', { name: /^Хубэй/ });
-
-  expect(button).toHaveAccessibleName('Хубэй (湖北省) — отмечен');
-  expect(button).toHaveAttribute('aria-pressed', 'true');
-});
-
-it('называет исход разбора словом у каждого состояния', () => {
-  render(
-    <RegionAnswerList
-      regions={regions}
-      selectedRegionId={null}
-      onSelect={() => {}}
-      neighbourStates={{ hubei: 'found', hunan: 'missed', gansu: 'extra' }}
-    />,
-  );
-
-  expect(screen.getByRole('button', { name: /^Хубэй/ })).toHaveAccessibleName(
-    'Хубэй (湖北省) — найден',
-  );
-  expect(screen.getByRole('button', { name: /^Хунань/ })).toHaveAccessibleName(
-    'Хунань (湖南省) — пропущен',
-  );
-  expect(screen.getByRole('button', { name: /^Ганьсу/ })).toHaveAccessibleName(
-    'Ганьсу (甘肃省) — лишний',
-  );
-});
