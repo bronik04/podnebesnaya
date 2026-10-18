@@ -1,7 +1,11 @@
 import { readFileSync } from 'node:fs';
 import { expect, it } from 'vitest';
 import { countries } from '../src/content/countries';
-import { COUNTRY_SHAPES, DISPUTED_SHAPES } from '../src/map/country-geometry';
+import {
+  CONTEXT_SHAPES,
+  COUNTRY_SHAPES,
+  DISPUTED_SHAPES,
+} from '../src/map/country-geometry';
 import { parseMapPath } from '../src/map/svg-path';
 import {
   COUNTRY_FRAME_OUTSET,
@@ -15,6 +19,21 @@ it('рисует все четырнадцать стран', () => {
   expect(COUNTRY_SHAPES.map((shape) => shape.id).sort()).toEqual(
     countries.map((country) => country.id).sort(),
   );
+});
+
+/*
+ * Фон — не сосед: страна сухопутной границы, по ошибке попавшая в фон, молча
+ * перестала бы быть целью ответа при зелёной сборке.
+ */
+it('фоновые страны — только Южная Корея, и ни одна из них не цель', () => {
+  const targetIds = new Set(countries.map((country) => country.id));
+
+  expect(CONTEXT_SHAPES.map((shape) => shape.id)).toEqual(['south-korea']);
+  for (const shape of CONTEXT_SHAPES) {
+    expect(targetIds.has(shape.id)).toBe(false);
+    expect(COUNTRY_SHAPES.some((target) => target.id === shape.id)).toBe(false);
+    expect(shape.d).not.toBe('');
+  }
 });
 
 it('каждая страна подходит к границе Китая вплотную', () => {

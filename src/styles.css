@@ -1002,7 +1002,8 @@ button.text:hover:enabled {
  * выбора на карте должен остаться один, иначе ученику придётся держать в
  * голове два.
  */
-.china-map .country {
+.china-map .country,
+.china-map .country-context {
   cursor: pointer;
   fill: var(--map-locked);
   stroke: var(--map-border);
@@ -1056,14 +1057,13 @@ button.text:hover:enabled {
 }
 
 /*
- * Фоновая страна — та же суша, что и у соседей, но не цель: указатель не
- * меняется, нажатие проходит сквозь неё.
+ * Фоновая страна — та же суша, что и у соседей (заливка и граница общие с
+ * `.country` выше), но не цель: указатель не меняется, нажатие проходит
+ * сквозь неё.
  */
 .china-map .country-context {
-  fill: var(--map-locked);
+  cursor: default;
   pointer-events: none;
-  stroke: var(--map-border);
-  stroke-width: var(--map-border-width);
 }
 
 /*
