@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { expect, it, vi } from 'vitest';
 import { dynasties, spanLabel } from '../../content/dynasties';
 import { createSeededRandom } from '../../domain/random';
@@ -8,7 +8,7 @@ import { capitalOfDynasty } from '../../content/dynasty-capitals';
 import { rulerOfDynasty, rulers } from '../../content/rulers';
 import { answerableYears } from '../../domain/dynasty-years';
 import { HistoryRound } from './HistoryRound';
-import { CORRECT_PAUSE_MS, WRONG_PAUSE_MS } from './round-pace';
+import { passFeedback } from '../../test/round-pace';
 
 function renderRound(seed = 5) {
   const onFinish = vi.fn();
@@ -318,9 +318,7 @@ it('раунд идёт по всем династиям и заканчивае
     for (let index = 0; index < dynasties.length; index += 1) {
       const target = askedDynasty();
       fireEvent.click(choiceWith(spanLabel(target)));
-      act(() => {
-        vi.advanceTimersByTime(CORRECT_PAUSE_MS + WRONG_PAUSE_MS);
-      });
+      passFeedback();
     }
   } finally {
     vi.useRealTimers();

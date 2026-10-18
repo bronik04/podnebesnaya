@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
-import { CORRECT_PAUSE_MS, WRONG_PAUSE_MS } from './round-pace';
+import { CORRECT_PAUSE_MS } from './round-pace';
 import { cityById } from '../../content/cities';
 import { regions } from '../../content/regions';
 import type { Region } from '../../content/types';
@@ -7,6 +7,7 @@ import type { QuestionLanguage } from '../../domain/question-language';
 import type { ExerciseType } from '../../domain/round';
 import { ChinaMap } from '../../map/ChinaMap';
 import { ExerciseRound } from './ExerciseRound';
+import { passFeedback } from '../../test/round-pace';
 
 const SHORT_POOL = regions.slice(0, 3);
 
@@ -71,7 +72,7 @@ it('переводит к следующему вопросу сам, без к�
 
     answerCorrectly();
 
-    expect(screen.queryByRole('button', { name: 'Далее' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Дальше' })).toBeNull();
     /*
      * На паузу встаёт печать 对 со словом (редизайн, 2026-10-14) — это
      * отметка исхода, а не разбор: кнопки нет, раунд едет сам.
@@ -88,7 +89,12 @@ it('переводит к следующему вопросу сам, без к�
   }
 });
 
-it('после ошибки называет верный ответ и едет дальше сам', () => {
+/*
+ * После ошибки раунд стоит, пока ученик не пойдёт дальше (решение владельца
+ * от 2026-10-18): за две секунды автоперехода он не успевал разглядеть свой
+ * ответ рядом с верным.
+ */
+it('после ошибки называет верный ответ и ждёт, пока ученик пойдёт дальше', () => {
   vi.useFakeTimers();
   try {
     renderRound();
@@ -98,17 +104,31 @@ it('после ошибки называет верный ответ и едет
 
     expect(screen.getByText('Этот регион стоит повторить')).toBeTruthy();
     expect(asked()).toContain(target.nameRu);
-    expect(screen.queryByRole('button', { name: 'Далее' })).toBeNull();
 
     act(() => {
-      vi.advanceTimersByTime(WRONG_PAUSE_MS);
+      vi.advanceTimersByTime(60_000);
     });
+    expect(asked()).toContain(target.nameRu);
+    expect(screen.getByRole('button', { name: /^Дальше/ })).toHaveFocus();
+
+    fireEvent.keyDown(window, { key: 'Enter' });
 
     expect(screen.queryByText('Этот регион стоит повторить')).toBeNull();
     expect(asked()).not.toContain(target.nameRu);
+    expect(screen.queryByRole('button', { name: /^Дальше/ })).toBeNull();
   } finally {
     vi.useRealTimers();
   }
+});
+
+it('после ошибки пробел тоже ведёт дальше', () => {
+  renderRound();
+  const target = askedRegion();
+
+  answerWrongly();
+  fireEvent.keyDown(window, { key: ' ' });
+
+  expect(asked()).not.toContain(target.nameRu);
 });
 
 it('на русском спрашивает русским названием', () => {
@@ -317,9 +337,7 @@ it('последний вопрос с ошибкой всё равно заве
     });
 
     answerWrongly();
-    act(() => {
-      vi.advanceTimersByTime(WRONG_PAUSE_MS);
-    });
+    passFeedback();
 
     expect(finish).toHaveBeenCalledOnce();
     expect(finish.mock.calls[0][0]).toHaveLength(pool.length);

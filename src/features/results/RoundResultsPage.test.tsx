@@ -204,3 +204,28 @@ it('без карты нет и обозначений', () => {
 
   expect(screen.queryByRole('list', { name: 'Обозначения' })).toBeNull();
 });
+
+/*
+ * У ошибки — ссылка на её карточку в справочнике (решение владельца от
+ * 2026-10-18): разобрать, что перепутал, тут же, а не искать в атласе самому.
+ * Куда ведёт ссылка, знает `App`; у кого карточки нет, у того и ссылки нет.
+ */
+it('ведёт от ошибки в справочник', () => {
+  const opened: string[] = [];
+  renderResults({
+    referenceOf: (id) => (id === 'sichuan' ? () => opened.push(id) : null),
+  });
+
+  fireEvent.click(screen.getByRole('button', { name: 'В справочник — Сычуань' }));
+
+  expect(opened).toEqual(['sichuan']);
+  expect(
+    screen.queryByRole('button', { name: 'В справочник — Юньнань' }),
+  ).toBeNull();
+});
+
+it('без справочника ссылок у ошибок нет', () => {
+  renderResults();
+
+  expect(screen.queryByRole('button', { name: /^В справочник/ })).toBeNull();
+});

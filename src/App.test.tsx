@@ -6,7 +6,6 @@ import {
   waitFor,
   within,
 } from '@testing-library/react';
-import { CORRECT_PAUSE_MS, WRONG_PAUSE_MS } from './features/exercise/round-pace';
 import { MISS_FLASH_MS } from './features/exercise/FillMapRound';
 import { afterEach, beforeEach } from 'vitest';
 import App from './App';
@@ -14,6 +13,7 @@ import { cityById } from './content/cities';
 import { countries } from './content/countries';
 import { regions } from './content/regions';
 import type { Region } from './content/types';
+import { passFeedback } from './test/round-pace';
 
 /**
  * Хранилище подменяется картой в памяти: приложение читает прогресс при
@@ -302,19 +302,18 @@ function answerCapital(correct: boolean): void {
 }
 
 /*
- * Кнопки «Далее» больше нет: и верный ответ, и ошибка переводят раунд к
- * следующему вопросу сами, по таймеру (спек RoundStage, 2026-08-17) — верный
- * через 500 мс, ошибка через 2000 мс, пока плашка показывает верный ответ.
- * Поэтому весь раунд проходится на поддельных часах.
+ * Верный ответ переводит раунд к следующему вопросу сам, через 500 мс, а
+ * после ошибки раунд стоит до «Дальше» (решение владельца от 2026-10-18).
+ * Поэтому весь раунд проходится на поддельных часах и `passFeedback`.
  */
 function finishRound(correct: boolean): void {
   vi.useFakeTimers();
   try {
     for (let index = 0; index < 34; index += 1) {
       answerCapital(correct);
-      act(() => {
-        vi.advanceTimersByTime(correct ? CORRECT_PAUSE_MS : WRONG_PAUSE_MS);
-      });
+      /* Верный ответ не останавливает раунд, ошибка — останавливает. */
+      expect(screen.queryByRole('button', { name: /^Дальше/ }) !== null).toBe(!correct);
+      passFeedback();
     }
   } finally {
     vi.useRealTimers();
@@ -444,9 +443,7 @@ it('раунд по истории доходит до итога и счита�
   try {
     for (let index = 0; index < 12; index += 1) {
       fireEvent.click(screen.getAllByTestId('choice-option')[0]);
-      act(() => {
-        vi.advanceTimersByTime(CORRECT_PAUSE_MS + WRONG_PAUSE_MS);
-      });
+      passFeedback();
     }
   } finally {
     vi.useRealTimers();
@@ -509,9 +506,7 @@ it('итог игры про страны считает страны, а не �
     for (let index = 0; index < 14; index += 1) {
       const buttons = screen.getAllByRole('button', { name: countryName });
       fireEvent.click(buttons[index % buttons.length]);
-      act(() => {
-        vi.advanceTimersByTime(WRONG_PAUSE_MS);
-      });
+      passFeedback();
     }
   } finally {
     vi.useRealTimers();
@@ -547,9 +542,7 @@ it('новый раунд после достопримечательносте�
       }
 
       fireEvent.click(choices[0]);
-      act(() => {
-        vi.advanceTimersByTime(WRONG_PAUSE_MS);
-      });
+      passFeedback();
     }
   } finally {
     vi.useRealTimers();

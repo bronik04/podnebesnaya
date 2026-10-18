@@ -247,6 +247,29 @@ it('в физическом виде выбранная река открыва�
   expect(card).toHaveTextContent('Река');
 });
 
+/*
+ * Ссылка «В справочник» с итогов раунда по физической карте открывает атлас
+ * сразу на карточке объекта, а не на политической карте с приглашением.
+ */
+it('открывается на объекте физической карты, если его передали', () => {
+  render(
+    <AtlasPage
+      regions={regions}
+      selectedRegionId={null}
+      onSelect={() => {}}
+      onClear={() => {}}
+      zoom={1}
+      onZoomChange={() => {}}
+      onTrain={() => {}}
+      onOpenCollection={() => {}}
+      initialFeatureId="yellow-river"
+    />,
+  );
+
+  expect(screen.getByRole('radio', { name: 'Физическая' })).toBeChecked();
+  expect(screen.getByTestId('atlas-region-card')).toHaveTextContent('Хуанхэ');
+});
+
 it('возврат к политической карте сбрасывает выбранный объект', () => {
   renderAtlas('hunan');
 

@@ -50,6 +50,13 @@ export type AtlasPageProps = {
   /** Вид рельефа на физической карте: держит `App`, общий с раундом. */
   readonly reliefStyle?: ReliefStyle;
   readonly onReliefStyleChange?: (value: ReliefStyle) => void;
+  /**
+   * Объект физической карты, с которым атлас открывается, — ссылка «В
+   * справочник» с итогов раунда. Задан — атлас встаёт на физический вид с
+   * карточкой объекта. Берётся только при открытии: дальше видом и выбором
+   * распоряжается сама страница.
+   */
+  readonly initialFeatureId?: string | null;
 };
 
 /**
@@ -71,12 +78,15 @@ export function AtlasPage({
   onZoomChange,
   onTrain,
   onOpenCollection,
+  initialFeatureId = null,
 }: AtlasPageProps) {
   /*
    * Вид карты живёт здесь, а не в `App`: он не меняет ни прогресса, ни раунда
    * и нужен одной этой поверхности.
    */
-  const [mapKind, setMapKind] = useState<MapKind>('political');
+  const [mapKind, setMapKind] = useState<MapKind>(
+    initialFeatureId === null ? 'political' : 'physical',
+  );
   /*
    * Атлас во весь экран — тем же приёмом, что и раунд: родной Fullscreen API,
    * та же кнопка в подвале, те же слова. Второй способ разворачивать карту в
@@ -94,7 +104,9 @@ export function AtlasPage({
    * с ним сбрасывается: на политической карте рек нет, и оставленный выбор
    * пережил бы то, что его породило.
    */
-  const [selectedFeatureId, setSelectedFeatureId] = useState<string | null>(null);
+  const [selectedFeatureId, setSelectedFeatureId] = useState<string | null>(
+    initialFeatureId,
+  );
   const selected = regions.find((region) => region.id === selectedRegionId);
   /*
    * Объект перебивает регион, пока показан физический вид: рассказывать

@@ -138,7 +138,7 @@ export function HistoryRound({
   const [answeredId, setAnsweredId] = useState<string | null>(null);
   const [startedAt] = useState(startClock);
   const [askedAt, setAskedAt] = useState(startClock);
-  const { schedule } = useAutoAdvance();
+  const { schedule, waiting, proceed } = useAutoAdvance();
 
   const question = currentQuestion(round);
 
@@ -396,6 +396,7 @@ export function HistoryRound({
 
   return (
     <RoundStage
+      onContinue={waiting ? proceed : null}
       title={roundTitle(HISTORY_CARD_IDS[kind])}
       prompt={prompt}
       promptState={showsAnswer ? 'answer' : 'question'}

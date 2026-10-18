@@ -1,5 +1,4 @@
 import {
-  act,
   fireEvent,
   render,
   screen,
@@ -8,7 +7,7 @@ import {
 import { expect, it, vi } from 'vitest';
 import { cultureCollectionsUpTo } from '../../content/culture-sets';
 import { CultureRound } from './CultureRound';
-import { CORRECT_PAUSE_MS, WRONG_PAUSE_MS } from './round-pace';
+import { passFeedback } from '../../test/round-pace';
 
 const POOL = cultureCollectionsUpTo('culture');
 
@@ -112,9 +111,7 @@ it('раунд идёт по всем снимкам набора и закан�
           .getAllByTestId('choice-option')
           .find((item) => item.textContent?.includes(target.nameRu))!,
       );
-      act(() => {
-        vi.advanceTimersByTime(CORRECT_PAUSE_MS + WRONG_PAUSE_MS);
-      });
+      passFeedback();
     }
   } finally {
     vi.useRealTimers();

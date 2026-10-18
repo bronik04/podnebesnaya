@@ -94,7 +94,7 @@ export function CountryRound({
   const [answeredId, setAnsweredId] = useState<string | null>(null);
   const [askedAt, setAskedAt] = useState(startClock);
   const [startedAt] = useState(startClock);
-  const { schedule } = useAutoAdvance();
+  const { schedule, waiting, proceed } = useAutoAdvance();
 
   const choicesByQuestion = useMemo(() => {
     const random = createSeededRandom(seed + 1);
@@ -207,6 +207,7 @@ export function CountryRound({
 
   return (
     <RoundStage
+      onContinue={waiting ? proceed : null}
       title={roundTitle(exerciseType === 'find-on-map' ? 'find-country' : 'name-country')}
       prompt={prompt}
       promptState={showsAnswer ? 'answer' : 'question'}

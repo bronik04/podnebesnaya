@@ -75,6 +75,7 @@ import type { ReliefStyle } from './map/ReliefStyleToggle';
 import type { MapZoom } from './map/MapControls';
 import { LeaveRoundDialog } from './ui/LeaveRoundDialog';
 import { SiteHeader, type SiteSection } from './ui/SiteHeader';
+import { referenceTargetOf } from './features/results/reference-target';
 
 type RoundRequest = ExerciseType;
 
@@ -251,6 +252,11 @@ export default function App() {
   const [countryExerciseType, setCountryExerciseType] =
     useState<CountryExerciseType>('find-on-map');
   const [selectedRegionId, setSelectedRegionId] = useState<string | null>(null);
+  /*
+   * Объект физической карты, на котором открыть атлас, — ссылка «В справочник»
+   * с итогов раунда по физической карте. Атлас берёт его только при открытии.
+   */
+  const [atlasFeatureId, setAtlasFeatureId] = useState<string | null>(null);
   const [zoom, setZoom] = useState<MapZoom>(1);
   const [collectionId, setCollectionId] = useState<string | null>(null);
   /*
@@ -317,9 +323,22 @@ export default function App() {
     target?.scrollIntoView();
   }, [anchorRequests]);
 
+  /*
+   * Единственный вход в атлас. Объект физической карты задаётся только ссылкой
+   * «В справочник» с итогов; все прочие входы его сбрасывают, иначе атлас,
+   * открытый с главной, вставал бы на объект, оставшийся от прошлых итогов.
+   */
+  function openAtlas(regionId: string | null, featureId: string | null = null) {
+    if (regionId !== null || featureId !== null) {
+      setSelectedRegionId(regionId);
+    }
+    setAtlasFeatureId(featureId);
+    setScreen('atlas');
+  }
+
   function navigate(section: SiteSection) {
     if (section === 'atlas') {
-      setScreen('atlas');
+      openAtlas(null);
       return;
     }
 
@@ -774,6 +793,17 @@ export default function App() {
      * разойтись со списком ей теперь нечем.
      */
     const repeatIds = summary.targetsToReview.map((target) => target.id);
+    /* Ссылка «В справочник» у ошибки: куда она ведёт, решает `referenceTargetOf`. */
+    function referenceOf(targetId: string): (() => void) | null {
+      const reference = referenceTargetOf(roundKind, targetId);
+      if (reference === null) {
+        return null;
+      }
+
+      return reference.kind === 'feature'
+        ? () => openAtlas(null, reference.featureId)
+        : () => openAtlas(reference.regionId, null);
+    }
     const repeatCities = cityPool.filter((city) => repeatIds.includes(city.id));
     const repeatFeatures = physicalPool.filter((feature) =>
       repeatIds.includes(feature.id),
@@ -822,6 +852,7 @@ export default function App() {
       <AppFrame fillsFrame={false} current={null} onNavigate={navigate}>
         <RoundResultsPage
           summary={summary}
+          referenceOf={referenceOf}
           targets={
             isCityRound
               ? cityPool
@@ -980,6 +1011,7 @@ export default function App() {
           onOpenCollection={openCollection}
           reliefStyle={reliefStyle}
           onReliefStyleChange={setReliefStyle}
+          initialFeatureId={atlasFeatureId}
         />
       ) : activeScreen === 'collections' ? (
         <CollectionsPage regions={regions} onOpenCollection={openCollection} />
@@ -1005,16 +1037,13 @@ export default function App() {
           onStartHistoryRound={startHistoryRound}
           onStartPhysicalRound={startPhysicalRound}
           onStartLandmarkRound={startLandmarkRound}
-          onOpenAtlas={() => setScreen('atlas')}
+          onOpenAtlas={() => openAtlas(null)}
           /*
             Карта героя открывает атлас на нажатой области: выбор ставится до
             смены экрана, поэтому атлас рисуется уже с карточкой региона, а не
             моргает приглашением «выберите регион».
           */
-          onOpenRegion={(regionId) => {
-            setSelectedRegionId(regionId);
-            setScreen('atlas');
-          }}
+          onOpenRegion={(regionId) => openAtlas(regionId)}
           onGoToModes={goToModes}
           onOpenCollections={() => setScreen('collections')}
           onOpenCollection={openCollection}

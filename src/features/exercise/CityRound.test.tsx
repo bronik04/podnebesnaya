@@ -1,10 +1,11 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
-import { CORRECT_PAUSE_MS, WRONG_PAUSE_MS } from './round-pace';
+import { CORRECT_PAUSE_MS } from './round-pace';
 import { citiesUpTo } from '../../content/cities';
 import { regions } from '../../content/regions';
 import type { City } from '../../content/types';
 import type { ExerciseType } from '../../domain/round';
 import { CityRound } from './CityRound';
+import { passFeedback } from '../../test/round-pace';
 
 /** Ответ — нажатием на цель карты: её доступное имя — «название, 中文». */
 function mapTarget(nameRu: string): HTMLElement {
@@ -77,7 +78,7 @@ it('в «найти город» отвечают и нажатием по то�
   }
 });
 
-it('после ошибки называет верный ответ и едет дальше сам', () => {
+it('после ошибки называет верный ответ и идёт дальше по «Дальше»', () => {
   vi.useFakeTimers();
   try {
     renderRound();
@@ -89,11 +90,13 @@ it('после ошибки называет верный ответ и едет
     expect(screen.getByText('Этот город стоит повторить')).toBeTruthy();
     expect(asked()).toContain(target.nameRu);
     expect(asked()).toContain(target.nameZh);
-    expect(screen.queryByRole('button', { name: 'Далее' })).toBeNull();
-
+    /* Раунд стоит после ошибки, пока ученик не пойдёт дальше. */
     act(() => {
-      vi.advanceTimersByTime(WRONG_PAUSE_MS);
+      vi.advanceTimersByTime(60_000);
     });
+    expect(screen.getByRole('button', { name: 'Дальше' })).toHaveFocus();
+
+    passFeedback();
 
     expect(screen.queryByText('Этот город стоит повторить')).toBeNull();
     expect(asked()).not.toContain(target.nameRu);
