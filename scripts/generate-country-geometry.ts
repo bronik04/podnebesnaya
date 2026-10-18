@@ -61,6 +61,7 @@ type SourceDisputed = SourceCountry & {
 
 const source = JSON.parse(sourceJson) as {
   readonly countries: readonly SourceCountry[];
+  readonly context: readonly SourceCountry[];
   readonly disputed: readonly SourceDisputed[];
 };
 
@@ -121,6 +122,22 @@ if (missing.length > 0) {
   throw new Error(`Нет геометрии у стран: ${missing.join(', ')}`);
 }
 
+/*
+ * Фоновые страны — тот же контур без меры попадания: целью они не бывают, и
+ * мерить, во что в них можно попасть, незачем.
+ */
+const contextShapes = source.context.map((country) => {
+  const rings = toMapRings(country.rings);
+  if (rings.length === 0) {
+    throw new Error(`После обрезки от фоновой страны ${country.id} ничего не осталось`);
+  }
+
+  return {
+    id: country.id,
+    d: toPathData(rings, { closed: true, precision: pathPrecision }),
+  };
+});
+
 const disputed = source.disputed
   .map((area) => ({
     id: area.id,
@@ -156,6 +173,10 @@ const countryLines = shapes
   )
   .join('\n');
 
+const contextLines = contextShapes
+  .map((shape) => `  {\n    id: ${quote(shape.id)},\n    d: ${quote(shape.d)},\n  },`)
+  .join('\n');
+
 const disputedLines = disputed
   .map(
     (area) =>
@@ -189,6 +210,16 @@ export type CountryShape = {
   readonly d: string;
 };
 
+/**
+ * Фоновая страна: на карте есть, целью не бывает. Сухопутной границы с Китаем
+ * у неё нет, но без неё карта искажала бы соседа — без Южной Кореи КНДР
+ * выглядела всем полуостровом.
+ */
+export type ContextShape = {
+  readonly id: string;
+  readonly d: string;
+};
+
 export type DisputedShape = {
   readonly id: string;
   readonly nameRu: string;
@@ -199,6 +230,10 @@ export type DisputedShape = {
 
 export const COUNTRY_SHAPES: readonly CountryShape[] = [
 ${countryLines}
+];
+
+export const CONTEXT_SHAPES: readonly ContextShape[] = [
+${contextLines}
 ];
 
 export const DISPUTED_SHAPES: readonly DisputedShape[] = [
@@ -216,7 +251,8 @@ const small = shapes.filter(
 );
 
 console.info(
-  `Страны: ${shapes.length}, спорных участков ${disputed.length}. ` +
+  `Страны: ${shapes.length}, фоновых ${contextShapes.length}, ` +
+    `спорных участков ${disputed.length}. ` +
     `Мельче ${MIN_TARGET_PX} px при ширине ${REFERENCE_MAP_WIDTH}: ` +
     `${small.length}${small.length > 0 ? ` (${small.map((shape) => shape.id).join(', ')})` : ''}`,
 );
