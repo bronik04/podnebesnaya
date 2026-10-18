@@ -1379,14 +1379,15 @@ button.text:hover:enabled {
 /*
  * Исход ответа по звезде (решение владельца от 2026-10-18): верная — нефритом,
  * ошибочная — киноварью. Каналов два, как у исходов на карте регионов: цвет и
- * кольцо — сплошное у верной, пунктирное у ошибочной. Правила стоят после
+ * кольцо — сплошное у верной, пунктирное у ошибочной. Толщина и пунктир — те
+ * же, что у исходов областей и стран. Правила стоят после
  * выбора: специфичность у них равная, и исход побеждает выбор.
  */
 .china-map .landmark[data-outcome='correct'] .landmark-mark,
 .china-map .map-cluster[data-outcome='correct'] .landmark-mark {
   fill: var(--map-correct);
   stroke: var(--surface-paper-bright);
-  stroke-width: 2;
+  stroke-width: var(--map-border-width-strong);
 }
 
 .china-map .landmark[data-outcome='correct'] .landmark-halo,
@@ -1394,22 +1395,22 @@ button.text:hover:enabled {
   fill: none;
   stroke: var(--map-correct);
   stroke-dasharray: none;
-  stroke-width: 1.5;
+  stroke-width: var(--map-border-width-strong);
 }
 
 .china-map .landmark[data-outcome='incorrect'] .landmark-mark,
 .china-map .map-cluster[data-outcome='incorrect'] .landmark-mark {
   fill: var(--map-incorrect-mark);
   stroke: var(--surface-paper-bright);
-  stroke-width: 2;
+  stroke-width: var(--map-border-width-strong);
 }
 
 .china-map .landmark[data-outcome='incorrect'] .landmark-halo,
 .china-map .map-cluster[data-outcome='incorrect'] .cluster-halo {
   fill: none;
   stroke: var(--map-incorrect-mark);
-  stroke-dasharray: 3 2;
-  stroke-width: 1.5;
+  stroke-dasharray: 4 2;
+  stroke-width: var(--map-border-width-strong);
 }
 
 .china-map .landmark-hit {

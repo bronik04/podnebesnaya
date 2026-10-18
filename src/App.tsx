@@ -6,7 +6,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { cityById, citiesUpTo } from './content/cities';
+import { citiesUpTo } from './content/cities';
 import { collectionById } from './content/collections';
 import {
   physicalFeatures,
@@ -65,7 +65,7 @@ import {
   RoundResultsPage,
 } from './screens';
 import { hasUnaskedTargets } from './features/results/has-unasked';
-import { landmarkById, type Landmark } from './content/landmarks';
+import type { Landmark } from './content/landmarks';
 import { landmarksUpTo, type LandmarkSet } from './content/landmark-sets';
 import { countries, type Country } from './content/countries';
 import type { CountryExerciseType } from './features/exercise/exercise-modes';
@@ -75,6 +75,7 @@ import type { ReliefStyle } from './map/ReliefStyleToggle';
 import type { MapZoom } from './map/MapControls';
 import { LeaveRoundDialog } from './ui/LeaveRoundDialog';
 import { SiteHeader, type SiteSection } from './ui/SiteHeader';
+import { referenceTargetOf } from './features/results/reference-target';
 
 type RoundRequest = ExerciseType;
 
@@ -322,10 +323,22 @@ export default function App() {
     target?.scrollIntoView();
   }, [anchorRequests]);
 
+  /*
+   * Единственный вход в атлас. Объект физической карты задаётся только ссылкой
+   * «В справочник» с итогов; все прочие входы его сбрасывают, иначе атлас,
+   * открытый с главной, вставал бы на объект, оставшийся от прошлых итогов.
+   */
+  function openAtlas(regionId: string | null, featureId: string | null = null) {
+    if (regionId !== null || featureId !== null) {
+      setSelectedRegionId(regionId);
+    }
+    setAtlasFeatureId(featureId);
+    setScreen('atlas');
+  }
+
   function navigate(section: SiteSection) {
     if (section === 'atlas') {
-      setAtlasFeatureId(null);
-      setScreen('atlas');
+      openAtlas(null);
       return;
     }
 
@@ -780,36 +793,16 @@ export default function App() {
      * разойтись со списком ей теперь нечем.
      */
     const repeatIds = summary.targetsToReview.map((target) => target.id);
-    /*
-     * Ссылка «В справочник» у ошибки (решение владельца от 2026-10-18): регион
-     * открывает свою карточку в атласе, объект физической карты — свою на
-     * физическом виде, город и достопримечательность — карточку своего
-     * региона. У стран, династий и коллекций карточек нет — нет и ссылки.
-     */
-    function openAtlasOnRegion(regionId: string) {
-      setAtlasFeatureId(null);
-      setSelectedRegionId(regionId);
-      setScreen('atlas');
-    }
-
+    /* Ссылка «В справочник» у ошибки: куда она ведёт, решает `referenceTargetOf`. */
     function referenceOf(targetId: string): (() => void) | null {
-      if (isPhysicalRound) {
-        return () => {
-          setSelectedRegionId(null);
-          setAtlasFeatureId(targetId);
-          setScreen('atlas');
-        };
+      const reference = referenceTargetOf(roundKind, targetId);
+      if (reference === null) {
+        return null;
       }
 
-      const regionId = isCityRound
-        ? cityById(targetId)?.regionId
-        : isLandmarkRound
-          ? landmarkById(targetId)?.regionId
-          : roundKind === 'region'
-            ? targetId
-            : undefined;
-
-      return regionId === undefined ? null : () => openAtlasOnRegion(regionId);
+      return reference.kind === 'feature'
+        ? () => openAtlas(null, reference.featureId)
+        : () => openAtlas(reference.regionId, null);
     }
     const repeatCities = cityPool.filter((city) => repeatIds.includes(city.id));
     const repeatFeatures = physicalPool.filter((feature) =>
@@ -1044,16 +1037,13 @@ export default function App() {
           onStartHistoryRound={startHistoryRound}
           onStartPhysicalRound={startPhysicalRound}
           onStartLandmarkRound={startLandmarkRound}
-          onOpenAtlas={() => setScreen('atlas')}
+          onOpenAtlas={() => openAtlas(null)}
           /*
             Карта героя открывает атлас на нажатой области: выбор ставится до
             смены экрана, поэтому атлас рисуется уже с карточкой региона, а не
             моргает приглашением «выберите регион».
           */
-          onOpenRegion={(regionId) => {
-            setSelectedRegionId(regionId);
-            setScreen('atlas');
-          }}
+          onOpenRegion={(regionId) => openAtlas(regionId)}
           onGoToModes={goToModes}
           onOpenCollections={() => setScreen('collections')}
           onOpenCollection={openCollection}

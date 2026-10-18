@@ -311,6 +311,8 @@ function finishRound(correct: boolean): void {
   try {
     for (let index = 0; index < 34; index += 1) {
       answerCapital(correct);
+      /* Верный ответ не останавливает раунд, ошибка — останавливает. */
+      expect(screen.queryByRole('button', { name: /^Дальше/ }) !== null).toBe(!correct);
       passFeedback();
     }
   } finally {

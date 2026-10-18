@@ -90,7 +90,11 @@ it('после ошибки называет верный ответ и идёт
     expect(screen.getByText('Этот город стоит повторить')).toBeTruthy();
     expect(asked()).toContain(target.nameRu);
     expect(asked()).toContain(target.nameZh);
-    expect(screen.queryByRole('button', { name: 'Далее' })).toBeNull();
+    /* Раунд стоит после ошибки, пока ученик не пойдёт дальше. */
+    act(() => {
+      vi.advanceTimersByTime(60_000);
+    });
+    expect(screen.getByRole('button', { name: 'Дальше' })).toHaveFocus();
 
     passFeedback();
 

@@ -144,7 +144,11 @@ it('после ошибки называет верный объект и идё
     const stated = screen.getByTestId('exercise-target').textContent!;
     expect(stated).toContain(target.nameRu);
     expect(stated).toContain(target.nameZh);
-    expect(screen.queryByRole('button', { name: 'Далее' })).toBeNull();
+    /* Раунд стоит после ошибки, пока ученик не пойдёт дальше. */
+    act(() => {
+      vi.advanceTimersByTime(60_000);
+    });
+    expect(screen.getByRole('button', { name: 'Дальше' })).toHaveFocus();
 
     passFeedback();
 

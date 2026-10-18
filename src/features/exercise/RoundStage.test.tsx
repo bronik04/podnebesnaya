@@ -31,9 +31,12 @@ it('ставит плашку, карту и счёт по своим места
 it('плашка объявляет смену содержимого читалке', () => {
   renderStage();
 
-  const prompt = screen.getByText('Сычуань').closest('[aria-live]');
-  expect(prompt?.getAttribute('aria-live')).toBe('polite');
-  expect(prompt?.getAttribute('data-state')).toBe('question');
+  const live = screen.getByText('Сычуань').closest('[aria-live]');
+  expect(live?.getAttribute('aria-live')).toBe('polite');
+  expect(screen.getByText('Сычуань').closest('.stage-prompt')).toHaveAttribute(
+    'data-state',
+    'question',
+  );
 });
 
 it('без слота вариантов полосы нет', () => {
@@ -158,4 +161,86 @@ it('прочие клавиши раунд дальше не ведут', () => 
   fireEvent.keyDown(window, { key: 'Tab' });
 
   expect(onContinue).not.toHaveBeenCalled();
+});
+
+/* Кнопка вне живой области: фокус объявит её сам, второе объявление перебило бы ответ. */
+it('«Дальше» стоит вне живой области и называет клавиши для читалки', () => {
+  renderStage({ onContinue: () => {} });
+
+  const next = screen.getByRole('button', { name: 'Дальше' });
+  expect(next.closest('[aria-live]')).toBeNull();
+  expect(next).toHaveAttribute('aria-keyshortcuts', 'Space Enter');
+});
+
+/* Зажатый Enter, которым ответили, не должен смахнуть разбор ошибки. */
+it('повтор зажатой клавиши дальше не ведёт', () => {
+  const onContinue = vi.fn();
+  renderStage({ onContinue });
+
+  const repeat = new KeyboardEvent('keydown', { key: 'Enter', repeat: true, bubbles: true, cancelable: true });
+  screen.getByRole('button', { name: 'Дальше' }).dispatchEvent(repeat);
+
+  expect(onContinue).not.toHaveBeenCalled();
+  expect(repeat.defaultPrevented).toBe(true);
+});
+
+/* Под окном «Прервать раунд и перейти…?» ученик вопроса не видит. */
+it('под открытым окном и с модификатором дальше не ведёт', () => {
+  const onContinue = vi.fn();
+  renderStage({ onContinue });
+  const dialog = document.createElement('dialog');
+  dialog.setAttribute('open', '');
+  document.body.append(dialog);
+  try {
+    fireEvent.keyDown(window, { key: ' ' });
+  } finally {
+    dialog.remove();
+  }
+  fireEvent.keyDown(window, { key: 'Enter', ctrlKey: true });
+  fireEvent.keyDown(window, { key: ' ', shiftKey: true });
+
+  expect(onContinue).not.toHaveBeenCalled();
+});
+
+/* Кнопка исчезает вместе с фокусом — фокус обязан вернуться к ответу. */
+it('с концом ожидания фокус возвращается туда, откуда ушёл', () => {
+  const { rerender } = render(
+    <RoundStage
+      prompt={<p>Сычуань</p>}
+      promptState="question"
+      startedAt={0}
+      progress={<p>Вопрос 1 из 34</p>}
+      onExit={() => {}}
+    >
+      <button type="button">цель</button>
+    </RoundStage>,
+  );
+  screen.getByRole('button', { name: 'цель' }).focus();
+
+  rerender(
+    <RoundStage
+      prompt={<p>Сычуань</p>}
+      promptState="answer"
+      startedAt={0}
+      progress={<p>Вопрос 1 из 34</p>}
+      onExit={() => {}}
+      onContinue={() => {}}
+    >
+      <button type="button">цель</button>
+    </RoundStage>,
+  );
+  expect(screen.getByRole('button', { name: 'Дальше' })).toHaveFocus();
+
+  rerender(
+    <RoundStage
+      prompt={<p>Хубэй</p>}
+      promptState="question"
+      startedAt={0}
+      progress={<p>Вопрос 2 из 34</p>}
+      onExit={() => {}}
+    >
+      <button type="button">цель</button>
+    </RoundStage>,
+  );
+  expect(screen.getByRole('button', { name: 'цель' })).toHaveFocus();
 });

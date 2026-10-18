@@ -55,7 +55,7 @@ it('после верного ответа сразу спрашивает сл�
   answerWith(first);
 
   expect(askedRegion().id).not.toBe(first.id);
-  expect(screen.queryByRole('button', { name: 'Далее' })).toBeNull();
+  expect(screen.queryByRole('button', { name: /^Дальше/ })).toBeNull();
 });
 
 it('промах уменьшает счётчик попыток и не меняет вопрос', () => {

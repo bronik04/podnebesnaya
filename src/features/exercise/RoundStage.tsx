@@ -48,9 +48,10 @@ export type RoundStageProps = {
  * Порядок DOM — шапка, вопрос, карта, варианты, строка; раскладку решает
  * только CSS.
  *
- * Блок вопроса — aria-live: смена вопроса и показ верного ответа объявляются
- * читалке. Раньше это делал перевод фокуса на заголовок разбора — самого
- * разбора больше нет.
+ * Вопрос и исход — живая область: смена вопроса и показ верного ответа
+ * объявляются читалке. Кнопка «Дальше» после ошибки стоит в том же блоке, но
+ * вне живой области: фокус на неё объявит её и так, а второе объявление
+ * перебило бы верный ответ.
  *
  * Полноэкранная кнопка разворачивает корень оболочки: шапка сайта остаётся
  * вне полного экрана, решение 2026-08-05 о шапке не отменяется.
@@ -96,10 +97,31 @@ export function RoundStage({
       return;
     }
 
+    /*
+     * Фокус уходит на «Дальше», а с концом ожидания возвращается туда, откуда
+     * пришёл: кнопка исчезает вместе с фокусом, и без возврата следующий Tab
+     * начинался бы с шапки сайта. Если прежнего элемента уже нет (вариант
+     * прошлого вопроса), фокус встаёт на первую цель ответа.
+     */
+    const returnTo =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const stage = stageRef.current;
     continueRef.current?.focus();
 
     function handleKeyDown(event: globalThis.KeyboardEvent) {
-      if ((event.key !== ' ' && event.key !== 'Enter') || event.repeat) {
+      if (event.key !== ' ' && event.key !== 'Enter') {
+        return;
+      }
+
+      /*
+       * С модификатором клавиша — чужое сочетание, а под открытым окном
+       * («Прервать раунд и перейти…?») ученик вопроса не видит: тот же отбор,
+       * что у клавиш вариантов в `StageChoices`.
+       */
+      if (event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) {
+        return;
+      }
+      if (document.querySelector('dialog[open]') !== null) {
         return;
       }
 
@@ -113,13 +135,34 @@ export function RoundStage({
         return;
       }
 
-      /* Без этого Enter на самой кнопке дал бы ещё и щелчок — второй шаг. */
+      /*
+       * Без этого Enter на самой кнопке дал бы ещё и щелчок — второй шаг.
+       * Повтор зажатой клавиши гасится так же, но дальше не ведёт: иначе
+       * Enter, которым ответили, тут же смахнул бы разбор ошибки.
+       */
       event.preventDefault();
+      if (event.repeat) {
+        return;
+      }
       continueHandler.current?.();
     }
 
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      if (stage === null || !stage.isConnected) {
+        return;
+      }
+      if (returnTo !== null && returnTo.isConnected && returnTo !== document.body) {
+        returnTo.focus();
+        return;
+      }
+      stage
+        .querySelector<HTMLElement>(
+          '.stage-choices-band button:not([disabled]), .stage-map [tabindex="0"]',
+        )
+        ?.focus();
+    };
   }, [isWaiting]);
 
   return (
@@ -132,29 +175,39 @@ export function RoundStage({
         {title === undefined ? null : <p className="stage-title">{title}</p>}
         {progress}
       </div>
-      <div className="stage-prompt" data-state={promptState} aria-live="polite">
-        {prompt}
-        {verdict === null ? null : (
-          <p className="stage-verdict" data-verdict={verdict}>
-            <span
-              className="seal seal-solid"
-              data-tone={verdict === 'correct' ? 'correct' : undefined}
-              lang="zh-Hans"
-              aria-hidden="true"
-            >
-              {VERDICTS[verdict].seal}
-            </span>
-            {VERDICTS[verdict].word}
-          </p>
-        )}
+      <div className="stage-prompt" data-state={promptState}>
+        <div className="stage-prompt-live" aria-live="polite">
+          {prompt}
+          {verdict === null ? null : (
+            <p className="stage-verdict" data-verdict={verdict}>
+              <span
+                className="seal seal-solid"
+                data-tone={verdict === 'correct' ? 'correct' : undefined}
+                lang="zh-Hans"
+                aria-hidden="true"
+              >
+                {VERDICTS[verdict].seal}
+              </span>
+              {VERDICTS[verdict].word}
+            </p>
+          )}
+        </div>
+        {/*
+          Клавиши названы `aria-keyshortcuts`, а подсказка для глаза скрыта от
+          читалки: иначе имя кнопки звучало бы «Дальше пробел слэш Enter».
+        */}
         {onContinue === null ? null : (
           <button
             type="button"
             className="primary stage-continue"
             ref={continueRef}
+            aria-keyshortcuts="Space Enter"
             onClick={onContinue}
           >
-            Дальше <span className="stage-continue-keys">пробел / Enter</span>
+            Дальше{' '}
+            <span className="stage-continue-keys" aria-hidden="true">
+              пробел / Enter
+            </span>
           </button>
         )}
       </div>
