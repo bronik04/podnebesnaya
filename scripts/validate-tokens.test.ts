@@ -72,6 +72,27 @@ function expectAtLeast(
   ).toBeGreaterThanOrEqual(threshold);
 }
 
+/**
+ * Линия с ореолом: на светлой полосе её отделяет от фона сама линия, на тёмной
+ * — светлый ореол вокруг неё. Довольно одного из двух, но сама линия обязана
+ * отделяться от ореола, иначе ореол её съест.
+ */
+function expectSeparatedByLineOrHalo(
+  line: string,
+  halo: string,
+  background: string,
+  threshold: number,
+) {
+  const byLine = contrastRatioRounded(color(line), color(background));
+  const byHalo = contrastRatioRounded(color(halo), color(background));
+
+  expect(
+    Math.max(byLine, byHalo),
+    `${line} на ${background}: ${byLine}:1, ореол ${halo}: ${byHalo}:1, нужно ${threshold}:1`,
+  ).toBeGreaterThanOrEqual(threshold);
+  expectAtLeast(line, halo, threshold);
+}
+
 describe('текст', () => {
   it('основной текст на бумаге читается', () => {
     expectAtLeast('--text-on-paper', '--surface-paper', TEXT_CONTRAST);
@@ -415,6 +436,21 @@ describe('шкала высот', () => {
     }
   });
 
+  /*
+   * Обводка выделения — фиолетовая с ореолом бумагой (решение владельца от
+   * 2026-10-18): тушью она терялась на тёмных полосах и рядом с границами.
+   */
+  it('обводка выделения отделена от каждой полосы — сама или ореолом', () => {
+    for (const band of BANDS) {
+      expectSeparatedByLineOrHalo(
+        '--map-highlight-outline',
+        '--map-highlight-halo',
+        band,
+        GRAPHIC_CONTRAST,
+      );
+    }
+  });
+
   it('подпись объекта читается на каждой полосе', () => {
     for (const band of BANDS) {
       expectAtLeast('--map-label', band, TEXT_CONTRAST);
@@ -521,6 +557,12 @@ describe('шкала высот тушью', () => {
       expectAtLeast('--map-correct-mark', band, GRAPHIC_CONTRAST);
       expectAtLeast('--map-incorrect-mark-relief', band, GRAPHIC_CONTRAST);
       expectAtLeast('--map-highlight', band, GRAPHIC_CONTRAST);
+      expectSeparatedByLineOrHalo(
+        '--map-highlight-outline',
+        '--map-highlight-halo',
+        band,
+        GRAPHIC_CONTRAST,
+      );
     }
   });
 
