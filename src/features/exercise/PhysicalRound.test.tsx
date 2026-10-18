@@ -42,6 +42,22 @@ function renderRound(
   return { container, onFinish, onExit };
 }
 
+/*
+ * Пул сужается на «Повторить ошибки», справочник — нет: на карте нарисованы
+ * все объекты, иначе в повторе одной ошибки на ней остался бы один — он же
+ * ответ.
+ */
+it('в повторе одного объекта карта рисует весь справочник', () => {
+  const { container } = renderRound('find-on-map', physicalFeatures.slice(0, 1));
+
+  const onMap = new Set(
+    [...container.querySelectorAll('[data-feature-id]')].map(
+      (mark) => mark.getAttribute('data-feature-id') ?? '',
+    ),
+  );
+  expect(onMap.size).toBeGreaterThan(1);
+});
+
 it('спрашивает все объекты подряд', () => {
   renderRound('find-on-map');
 

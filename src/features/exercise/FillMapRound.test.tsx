@@ -158,6 +158,10 @@ it('показывает ненайденный регион и только п�
   }
 });
 
+/*
+ * Карта на паузе показа остаётся на месте и в дереве доступности: области не
+ * пропадают и не теряют фокус, а лишь помечены выключенными.
+ */
 it('во время показа не принимает ответ, но карта остаётся', () => {
   vi.useFakeTimers();
   try {
@@ -176,7 +180,12 @@ it('во время показа не принимает ответ, но кар
     answerWith(next);
 
     expect(screen.getByTestId('fill-progress')).toHaveTextContent(progressBefore!);
-    expect(screen.getAllByRole('button', { name: /^.+, .+/ }).length).toBeGreaterThan(0);
+    const areas = screen.getAllByRole('button', { name: /^.+, .+/ });
+    expect(areas.length).toBeGreaterThan(0);
+    for (const area of areas) {
+      expect(area).toHaveAttribute('aria-disabled', 'true');
+      expect(area).toHaveAttribute('tabindex', '0');
+    }
   } finally {
     vi.useRealTimers();
   }

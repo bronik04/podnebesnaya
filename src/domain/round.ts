@@ -22,6 +22,11 @@ export type TargetKind =
   | 'history'
   | 'collection'
   | 'landmark'
+  /*
+   * Вид игры «Соседи региона», снятой решением владельца от 2026-10-18. Новых
+   * целей этого вида не появляется, но в сохранённой истории попыток они
+   * остаются, и тип обязан их описывать.
+   */
   | 'neighbours'
   | 'country';
 
@@ -32,16 +37,6 @@ export type Target = {
 
 export function regionTarget(id: string): Target {
   return { kind: 'region', id };
-}
-
-/**
- * Цель игры «соседи»: спрошенный регион. Отдельный вид, а не `region`, — «не
- * знает соседей Хубэя» не то же, что «не знает, где Хубэй», и ошибка в одной
- * игре не должна снимать освоенность, заработанную в другой. Тот же довод, по
- * которому город отделён от региона.
- */
-export function neighboursTarget(id: string): Target {
-  return { kind: 'neighbours', id };
 }
 
 /**

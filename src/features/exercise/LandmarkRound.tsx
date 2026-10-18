@@ -46,7 +46,7 @@ export type LandmarkRoundProps = {
   /**
    * Пул раунда: какие объекты спрашиваются. Набор выбирается перед стартом, а
    * на «Повторить ошибки» пул сужается до ошибочных, — справочником он не
-   * является: отвлекающие и равнозначный список берут `allLandmarks`.
+   * является: отвлекающие и звёзды на карте берут `allLandmarks`.
    */
   readonly landmarks: readonly Landmark[];
   readonly exerciseType: ExerciseType;

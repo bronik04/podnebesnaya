@@ -42,7 +42,7 @@ function askedCity(): City {
   return capitals.find((city) => city.nameRu === asked())!;
 }
 
-it('спрашивает город по имени и принимает ответ из равнозначного списка', () => {
+it('спрашивает город по имени и принимает ответ на карте', () => {
   vi.useFakeTimers();
   try {
     renderRound();
@@ -208,12 +208,21 @@ it.each(['find-on-map', 'name-target'] as const)(
 
 /*
  * Пул сужается на «Повторить ошибки», справочник — нет. Точки на карте берутся
- * из справочника городов, а не из пула, поэтому и равнозначный список обязан
- * предлагать то же, что нарисовано: иначе список и карта отвечают на разные
- * вопросы, а в повторе одной ошибки в списке остаётся одна кнопка — она же
- * ответ.
+ * из справочника городов, а не из пула: иначе в повторе одной ошибки на карте
+ * осталась бы одна точка — она же ответ.
  */
 const SINGLE_POOL = capitals.slice(0, 1);
+
+it('в повторе одного города карта рисует весь справочник, а не пул', () => {
+  const { container } = renderRound('find-on-map', SINGLE_POOL);
+
+  const onMap = new Set(
+    [...container.querySelectorAll('[data-city-id]')].map(
+      (mark) => mark.getAttribute('data-city-id') ?? '',
+    ),
+  );
+  expect(onMap.size).toBeGreaterThan(SINGLE_POOL.length);
+});
 
 it('в повторе одного города вариантов всё равно четыре', () => {
   renderRound('name-target', SINGLE_POOL);

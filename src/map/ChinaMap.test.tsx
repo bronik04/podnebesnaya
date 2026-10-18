@@ -89,22 +89,6 @@ it('clears the selection with Escape', () => {
   expect(clear).toHaveBeenCalledOnce();
 });
 
-it('renders a named text alternative with 34 region actions', () => {
-  render(
-    <ChinaMap
-      regions={regions}
-      selectedRegionId={null}
-      onSelect={() => {}}
-      onClear={() => {}}
-    />,
-  );
-
-  expect(
-    screen.getByRole('list', { name: 'Список регионов карты' }),
-  ).toBeInTheDocument();
-  expect(screen.getAllByRole('listitem')).toHaveLength(34);
-});
-
 it('карта больше не печатает атрибуцию: её ставит страница', () => {
   render(
     <ChinaMap
@@ -232,7 +216,6 @@ it('не даёт выбрать область, у которой уже ест
   fireEvent.click(screen.getByRole('button', { name: 'Юньнань, 云南省' }));
 
   expect(select).not.toHaveBeenCalled();
-  expect(screen.getByRole('button', { name: 'Сычуань (四川省)' })).toBeDisabled();
   expect(document.querySelector('#sichuan')).toHaveAttribute('aria-disabled', 'true');
 });
 
@@ -543,10 +526,12 @@ it('не выбирает уже закрашенный регион', () => {
   );
 
   fireEvent.click(container.querySelector('[data-region-id="sichuan"]')!);
-  fireEvent.click(screen.getByRole('button', { name: /^Сычуань \(四川省\)/ }));
 
   expect(select).not.toHaveBeenCalled();
-  expect(screen.getByRole('button', { name: /^Сычуань \(四川省\)/ })).toBeDisabled();
+  expect(container.querySelector('[data-region-id="sichuan"]')).toHaveAttribute(
+    'aria-disabled',
+    'true',
+  );
 });
 
 it('называет исход региона в доступном имени', () => {
@@ -569,12 +554,9 @@ it('называет исход региона в доступном имени'
     'aria-label',
     'Хунань, 湖南省 — не угадан',
   );
-  expect(
-    screen.getByRole('button', { name: 'Хунань (湖南省) — не угадан' }),
-  ).toBeInTheDocument();
 });
 
-it('на паузе не отвечает, но список и фокус остаются на месте', () => {
+it('на паузе не отвечает, но область и фокус остаются на месте', () => {
   const select = vi.fn();
   render(
     <ChinaMap
@@ -587,14 +569,13 @@ it('на паузе не отвечает, но список и фокус ос�
     />,
   );
 
-  const button = screen.getByRole('button', { name: 'Сычуань (四川省)' });
-  button.focus();
-  fireEvent.click(button);
+  const area = screen.getByRole('button', { name: 'Сычуань, 四川省' });
+  area.focus();
+  fireEvent.click(area);
 
   expect(select).not.toHaveBeenCalled();
-  expect(button).toHaveAttribute('aria-disabled', 'true');
-  expect(button).not.toBeDisabled();
-  expect(document.activeElement).toBe(button);
+  expect(area).toHaveAttribute('aria-disabled', 'true');
+  expect(document.activeElement).toBe(area);
 });
 
 it('в режиме освоенности размечает области состоянием и называет его словом', () => {
@@ -802,7 +783,7 @@ it('река перехватывает нажатие у формы, через
 });
 
 /*
- * Витрина идёт с `usage="answer"` — ни заголовка, ни равнозначного списка ей
+ * Витрина идёт с `usage="answer"` — ни заголовка, ни строки выбора ей
  * не нужно, — но вопроса на ней нет, а выдать можно только ответ. Исключение
  * из защиты от утечки ответа проверяется здесь: без этого правило можно было
  * бы упростить обратно, и подписи выносок пропали бы с первого экрана — либо,

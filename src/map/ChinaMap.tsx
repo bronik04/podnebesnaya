@@ -42,7 +42,6 @@ import {
   loadPhysicalMap,
   type PhysicalMap,
 } from './load-physical-map';
-import { RegionAnswerList } from './RegionAnswerList';
 
 export type { AnswerState } from './region-selection';
 
@@ -185,7 +184,7 @@ type ChinaMapProps = {
    *
    * Отдельно от `onSelect` намеренно. Выбор — состояние этой карты, переход —
    * уход с неё, и путать их нельзя: витрина не подсвечивает выбранное, не
-   * объявляет «Выбрано» строкой и не показывает равнозначный список.
+   * объявляет «Выбрано» строкой.
    *
    * Области при этом не получают фокус (`interactive={false}`): тридцать
    * четыре остановки табуляции на первом экране стоят между шапкой и всем
@@ -1110,16 +1109,6 @@ export function ChinaMap({
         ) : (
           <p className="map-selection">На карте подсвечена одна область.</p>
         )
-      ) : null}
-      {showsBrowseChrome && interactive ? (
-        <RegionAnswerList
-          regions={regions}
-          selectedRegionId={selectedRegionId}
-          onSelect={onSelect}
-          answerStates={answerStates}
-          outcomes={outcomes}
-          paused={paused}
-        />
       ) : null}
     </section>
   );

@@ -142,11 +142,21 @@ it('в «объект — регион» прячет звёзды вовсе', 
 
 /*
  * Пул сужается на «Повторить ошибки», справочник — нет. Звёзды на карте
- * рисуются из справочника, а не из пула, поэтому и равнозначный список обязан
- * предлагать то же: иначе в повторе одной ошибки в списке остаётся одна
- * кнопка — она же ответ.
+ * рисуются из справочника, а не из пула: иначе в повторе одной ошибки на
+ * карте осталась бы одна звезда — она же ответ.
  */
 const SINGLE_POOL = landmarksUpTo('monuments').slice(0, 1);
+
+it('в повторе одной достопримечательности карта рисует весь справочник', () => {
+  const { container } = renderRound({ exerciseType: 'find-on-map', landmarks: SINGLE_POOL });
+
+  const onMap = new Set(
+    [...container.querySelectorAll('[data-landmark-id]')].map(
+      (mark) => mark.getAttribute('data-landmark-id') ?? '',
+    ),
+  );
+  expect(onMap.size).toBeGreaterThan(SINGLE_POOL.length);
+});
 
 it('в повторе одной достопримечательности вариантов всё равно четыре', () => {
   renderRound({ exerciseType: 'name-target', landmarks: SINGLE_POOL });

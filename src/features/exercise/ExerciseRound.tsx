@@ -30,8 +30,8 @@ import { useAutoAdvance } from './use-auto-advance';
 export type ExerciseRoundProps = {
   /**
    * Пул раунда: какие регионы спрашиваются. На «Повторить ошибки» он сужается
-   * до ошибочных, поэтому справочником он не является — отвлекающие,
-   * равнозначный список и сама карта берут `allRegions`.
+   * до ошибочных, поэтому справочником он не является — отвлекающие и сама
+   * карта берут `allRegions`.
    */
   readonly regions: readonly Region[];
   readonly exerciseTypes: readonly ExerciseType[];
