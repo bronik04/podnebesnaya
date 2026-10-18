@@ -1,7 +1,6 @@
-import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { expect, it, vi } from 'vitest';
 import { CORRECT_PAUSE_MS, WRONG_PAUSE_MS } from './round-pace';
-import { landmarks as allLandmarks } from '../../content/landmarks';
 import { landmarksUpTo } from '../../content/landmark-sets';
 import { LandmarkRound, type LandmarkRoundProps } from './LandmarkRound';
 
@@ -143,11 +142,21 @@ it('в «объект — регион» прячет звёзды вовсе', 
 
 /*
  * Пул сужается на «Повторить ошибки», справочник — нет. Звёзды на карте
- * рисуются из справочника, а не из пула, поэтому и равнозначный список обязан
- * предлагать то же: иначе в повторе одной ошибки в списке остаётся одна
- * кнопка — она же ответ.
+ * рисуются из справочника, а не из пула: иначе в повторе одной ошибки на
+ * карте осталась бы одна звезда — она же ответ.
  */
 const SINGLE_POOL = landmarksUpTo('monuments').slice(0, 1);
+
+it('в повторе одной достопримечательности карта рисует весь справочник', () => {
+  const { container } = renderRound({ exerciseType: 'find-on-map', landmarks: SINGLE_POOL });
+
+  const onMap = new Set(
+    [...container.querySelectorAll('[data-landmark-id]')].map(
+      (mark) => mark.getAttribute('data-landmark-id') ?? '',
+    ),
+  );
+  expect(onMap.size).toBeGreaterThan(SINGLE_POOL.length);
+});
 
 it('в повторе одной достопримечательности вариантов всё равно четыре', () => {
   renderRound({ exerciseType: 'name-target', landmarks: SINGLE_POOL });
@@ -156,17 +165,3 @@ it('в повторе одной достопримечательности ва
   expect(screen.getAllByTestId('choice-option')).toHaveLength(4);
 });
 
-it('в повторе одной достопримечательности список предлагает весь справочник', () => {
-  renderRound({ exerciseType: 'find-on-map', landmarks: SINGLE_POOL });
-
-  const toggle = screen.getByRole('button', { name: 'Ответить из списка' });
-  if (toggle.getAttribute('aria-expanded') !== 'true') {
-    fireEvent.click(toggle);
-  }
-
-  expect(
-    within(
-      screen.getByRole('list', { name: 'Список достопримечательностей' }),
-    ).getAllByRole('button'),
-  ).toHaveLength(allLandmarks.length);
-});

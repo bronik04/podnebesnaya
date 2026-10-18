@@ -23,39 +23,28 @@ function askedRegion(): Region {
   return regions.find((region) => region.nameRu === name)!;
 }
 
-/** Список — в панели оболочки: перед ответом её нужно открыть. */
-function openAnswerList() {
-  const toggle = screen.getByRole('button', { name: 'Ответить из списка' });
-  if (toggle.getAttribute('aria-expanded') !== 'true') {
-    fireEvent.click(toggle);
-  }
-}
-
 /**
- * Ответ даётся кнопкой из равнозначного списка под картой: он не зависит от
- * геометрии SVG. Доступное имя собрано в ChinaMap.tsx как
- * `{nameRu} <span lang="zh-Hans">({nameZh})</span>`.
+ * Ответ — нажатием на область карты. Доступное имя области собрано в
+ * ChinaMap.tsx как `{nameRu}, {nameZh}`.
  */
 function regionButton(region: Region): HTMLElement {
   // У закрытого региона к имени приписан исход, поэтому имя ищется по началу.
   return screen.getByRole('button', {
-    name: new RegExp(`^${region.nameRu} \\(${region.nameZh}\\)`),
+    name: new RegExp(`^${region.nameRu}, ${region.nameZh}`),
   });
 }
 
 function answerWith(region: Region) {
-  openAnswerList();
   fireEvent.click(regionButton(region));
 }
 
 /** Любой ещё открытый регион, кроме спрошенного: закрытый ответа не примет. */
 function anyOtherRegion(region: Region): Region {
-  openAnswerList();
 
   return regions.find(
     (candidate) =>
       candidate.id !== region.id &&
-      !regionButton(candidate).hasAttribute('disabled'),
+      regionButton(candidate).getAttribute('aria-disabled') !== 'true',
   )!;
 }
 
@@ -169,7 +158,11 @@ it('показывает ненайденный регион и только п�
   }
 });
 
-it('во время показа не принимает ответ, но список остаётся', () => {
+/*
+ * Карта на паузе показа остаётся на месте и в дереве доступности: области не
+ * пропадают и не теряют фокус, а лишь помечены выключенными.
+ */
+it('во время показа не принимает ответ, но карта остаётся', () => {
   vi.useFakeTimers();
   try {
     renderRound();
@@ -187,12 +180,16 @@ it('во время показа не принимает ответ, но спи
     answerWith(next);
 
     expect(screen.getByTestId('fill-progress')).toHaveTextContent(progressBefore!);
-    expect(screen.getAllByRole('button', { name: /\(.+\)/ }).length).toBeGreaterThan(0);
+    const areas = screen.getAllByRole('button', { name: /^.+, .+/ });
+    expect(areas.length).toBeGreaterThan(0);
+    for (const area of areas) {
+      expect(area).toHaveAttribute('aria-disabled', 'true');
+      expect(area).toHaveAttribute('tabindex', '0');
+    }
   } finally {
     vi.useRealTimers();
   }
 });
-
 
 it('первый фокусируемый элемент — область карты', () => {
   const { container } = renderRound();
@@ -202,18 +199,6 @@ it('первый фокусируемый элемент — область ка
   );
 
   expect(first).toHaveAttribute('data-region-id');
-});
-
-it('«Прервать раунд» стоит в разметке после списка ответов', () => {
-  renderRound();
-  openAnswerList();
-
-  const list = screen.getByRole('list', { name: 'Список регионов карты' });
-  const abort = screen.getByRole('button', { name: 'Прервать раунд' });
-
-  expect(
-    list.compareDocumentPosition(abort) & Node.DOCUMENT_POSITION_FOLLOWING,
-  ).toBeTruthy();
 });
 
 it('карта на экране раунда без заголовка «Интерактивная карта»', () => {

@@ -33,7 +33,6 @@ const loaders = {
   history: () => import('./features/exercise/HistoryRound'),
   culture: () => import('./features/exercise/CultureRound'),
   fill: () => import('./features/exercise/FillMapRound'),
-  neighbours: () => import('./features/exercise/NeighboursRound'),
   country: () => import('./features/exercise/CountryRound'),
   /*
    * Слой стран тянется заранее: без него игра в классе без сети не откроется.
@@ -77,9 +76,6 @@ export const CultureRound = lazy(() =>
 );
 export const FillMapRound = lazy(() =>
   loaders.fill().then((module) => ({ default: module.FillMapRound })),
-);
-export const NeighboursRound = lazy(() =>
-  loaders.neighbours().then((module) => ({ default: module.NeighboursRound })),
 );
 export const CountryRound = lazy(() =>
   loaders.country().then((module) => ({ default: module.CountryRound })),

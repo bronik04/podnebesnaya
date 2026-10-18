@@ -12,7 +12,6 @@ import {
 import { createSeededRandom } from '../../domain/random';
 import { labelOf, langOf, type QuestionLanguage } from '../../domain/question-language';
 import { ChinaMap, type MapHighlight } from '../../map/ChinaMap';
-import { RegionAnswerList } from '../../map/RegionAnswerList';
 import { roundTitle } from './exercise-modes';
 import { RoundStage } from './RoundStage';
 
@@ -233,16 +232,6 @@ export function FillMapRound({
             {statusText()}
           </p>
         </>
-      }
-      answerList={
-        <RegionAnswerList
-          regions={regions}
-          selectedRegionId={null}
-          onSelect={handleSelect}
-          outcomes={round.outcomes}
-          interactive={!finished}
-          paused={isRevealing}
-        />
       }
       onExit={onExit}
     >

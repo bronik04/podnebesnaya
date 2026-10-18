@@ -838,26 +838,6 @@ button.text:hover:enabled {
   outline-offset: 2px;
 }
 
-.map-alternative button {
-  background: var(--surface-raised);
-  border: var(--border-hair) solid var(--line-on-ground-strong);
-  border-radius: var(--radius-sm);
-  color: var(--text-on-ground);
-  cursor: pointer;
-  font: inherit;
-  min-height: var(--target-min);
-  padding: var(--s-2) var(--s-3);
-}
-
-.map-alternative button:hover:not(:disabled) {
-  border-color: var(--focus-on-ground);
-}
-
-.map-alternative button:disabled {
-  color: var(--text-on-ground-muted);
-  cursor: not-allowed;
-}
-
 /*
  * Образцы штриховки. Размер нулевой, но инлайновый `svg` всё равно заводит
  * строку в 24 px — на экране раунда это высота, отнятая у карты.
@@ -1079,38 +1059,6 @@ button.text:hover:enabled {
 }
 
 /*
- * Соседи. Игра начинается серой по тому же доводу, что и заполнение карты:
- * цвет — это ответ, и до ответа его быть не должно.
- *
- * Отмеченная область показана тем же тоном тушью, каким выбранная область
- * показана везде в приложении: ученик уже знает этот знак по атласу, и заводить
- * ради одной игры второй язык выбора незачем. Исход приходит на её место после
- * «Готово» и различается узором, а не только цветом: сплошная заливка у
- * найденного, редкая штриховка у пропущенного, частая у лишнего — та же
- * тройка каналов, что у исходов заполнения.
- */
-.china-map[data-map-variant='neighbours'] [data-region-id] {
-  fill: var(--map-unplayed);
-  transition: fill var(--duration-instant) var(--ease-out);
-}
-
-.china-map[data-map-variant='neighbours'] [data-neighbour-state='marked'] {
-  fill: var(--map-selected);
-}
-
-.china-map[data-map-variant='neighbours'] [data-neighbour-state='found'] {
-  fill: var(--map-first-try);
-}
-
-.china-map[data-map-variant='neighbours'] [data-neighbour-state='missed'] {
-  fill: url('#map-hatch-second-try');
-}
-
-.china-map[data-map-variant='neighbours'] [data-neighbour-state='extra'] {
-  fill: url('#map-hatch-failed');
-}
-
-/*
  * Карта освоенности только показывает: области не выбираются, курсор обычный.
  * Второй канал у каждого состояния свой — сплошная заливка, штриховка, пустой
  * тон, — и та же тройка названа словами в легенде под картой.
@@ -1230,12 +1178,11 @@ button.text:hover:enabled {
 }
 
 /*
- * Фокус на тёмной заливке — бумагой: тушь на туши выбранного региона и
- * отмеченного соседа и на нефрите верного ответа не даёт 3:1 (см.
+ * Фокус на тёмной заливке — бумагой: тушь на туши выбранного региона и на
+ * нефрите верного ответа не даёт 3:1 (см.
  * `--focus-on-dark`).
  */
 .china-map [data-region-id][data-selected='true']:focus-visible,
-.china-map [data-region-id][data-neighbour-state='marked']:focus-visible,
 .china-map [data-region-id][data-answer-state='correct']:focus-visible,
 .china-map .country[data-selected='true']:focus-visible,
 .china-map .country[data-answer-state='correct']:focus-visible {
@@ -1884,51 +1831,6 @@ button.text:hover:enabled {
   margin: var(--s-4) 0;
 }
 
-.map-alternative {
-  display: grid;
-  gap: var(--s-2);
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.map-alternative button {
-  text-align: left;
-  width: 100%;
-}
-
-.map-alternative button[aria-pressed='true'] {
-  border-color: var(--accent-on-ground);
-  font-weight: var(--t-weight-bold);
-}
-
-/*
- * Исход ответа в списке городов помечается тем же способом, что и в списке
- * вариантов: заливкой на верном и пунктиром на ошибочном — два канала, не
- * один цвет.
- */
-.map-alternative button[data-result='correct'] {
-  background: var(--state-correct);
-  border-color: var(--state-correct);
-  color: var(--map-correct-ink);
-  font-weight: var(--t-weight-bold);
-}
-
-.map-alternative button[data-result='incorrect'] {
-  border-color: var(--state-incorrect);
-  border-style: dashed;
-}
-
-/* Пауза показа: список остаётся на месте и в фокусе, но не отвечает. */
-.map-alternative button[aria-disabled='true'] {
-  cursor: not-allowed;
-}
-
-/*
- * Список в атласе прокручивается внутри себя: страница атласа занимает ровно
- * кадр, и 34 кнопки не должны её растить.
- */
 /* --- Справочник регионов ------------------------------------------------ */
 
 .region-list {
@@ -4548,31 +4450,6 @@ button.chip[aria-pressed='true'] {
 
 .stage-map .china-map svg {
   block-size: 100%;
-}
-
-/* Панель «Ответить из списка»: поверх карты у правого края, со своей прокруткой. */
-.stage-answer-panel {
-  background: var(--surface-ground);
-  border-inline-start: var(--border-hair) solid var(--line-on-ground);
-  box-shadow: var(--shadow-float);
-  inline-size: min(24rem, 90%);
-  inset-block: 0;
-  inset-inline-end: 0;
-  overflow-y: auto;
-  padding: var(--s-3) var(--s-4);
-  position: absolute;
-  z-index: 3;
-}
-
-/*
- * Узкий экран: панель во всю высоту закрыла бы карту целиком. Нижние 60 %
- * оставляют видным спрошенное место на карте.
- */
-@media (max-width: 1023px) {
-  .stage-answer-panel {
-    block-size: 60%;
-    inset-block: auto 0;
-  }
 }
 
 .stage-choices-band {

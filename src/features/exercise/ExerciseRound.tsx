@@ -17,7 +17,6 @@ import {
   type Round,
 } from '../../domain/round';
 import { ChinaMap } from '../../map/ChinaMap';
-import { RegionAnswerList } from '../../map/RegionAnswerList';
 import { answerStatesFor, verdictOf } from './answer-states';
 import {
   EXERCISE_MODES,
@@ -31,8 +30,8 @@ import { useAutoAdvance } from './use-auto-advance';
 export type ExerciseRoundProps = {
   /**
    * Пул раунда: какие регионы спрашиваются. На «Повторить ошибки» он сужается
-   * до ошибочных, поэтому справочником он не является — отвлекающие,
-   * равнозначный список и сама карта берут `allRegions`.
+   * до ошибочных, поэтому справочником он не является — отвлекающие и сама
+   * карта берут `allRegions`.
    */
   readonly regions: readonly Region[];
   readonly exerciseTypes: readonly ExerciseType[];
@@ -250,16 +249,6 @@ export function ExerciseRound({
             onChoose={answer}
           />
         )
-      }
-      answerList={
-        isMapAnswer ? (
-          <RegionAnswerList
-            regions={allRegions}
-            selectedRegionId={answeredRegionId}
-            onSelect={answer}
-            answerStates={answerStates}
-          />
-        ) : undefined
       }
       onExit={onExit}
     >

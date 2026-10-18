@@ -28,7 +28,6 @@ import {
   roundTitle,
   LANDMARK_CARD_IDS,
 } from './exercise-modes';
-import { LandmarkAnswerList } from './LandmarkAnswerList';
 import { RoundProgressTrail } from './RoundProgressTrail';
 import { RoundStage } from './RoundStage';
 import { StageChoices, type StageChoice } from './StageChoices';
@@ -47,7 +46,7 @@ export type LandmarkRoundProps = {
   /**
    * Пул раунда: какие объекты спрашиваются. Набор выбирается перед стартом, а
    * на «Повторить ошибки» пул сужается до ошибочных, — справочником он не
-   * является: отвлекающие и равнозначный список берут `allLandmarks`.
+   * является: отвлекающие и звёзды на карте берут `allLandmarks`.
    */
   readonly landmarks: readonly Landmark[];
   readonly exerciseType: ExerciseType;
@@ -262,23 +261,6 @@ export function LandmarkRound({
             choices={stageChoices}
             disabled={round.status !== 'ready'}
             onChoose={answer}
-          />
-        ) : undefined
-      }
-      answerList={
-        exerciseType === 'find-on-map' ? (
-          /*
-           * Список равнозначен карте, а звёзды на ней — из справочника, а не
-           * из пула: ответить нажатием можно по любой, значит и в списке
-           * обязаны стоять все.
-           */
-          <LandmarkAnswerList
-            landmarks={allLandmarks}
-            language={question.language}
-            answeredId={answeredId}
-            targetId={target.id}
-            disabled={round.status !== 'ready'}
-            onSelect={answer}
           />
         ) : undefined
       }

@@ -1,11 +1,4 @@
-import {
-  useEffect,
-  useId,
-  useRef,
-  useState,
-  type KeyboardEvent,
-  type ReactNode,
-} from 'react';
+import { useRef, type ReactNode } from 'react';
 import { RoundStopwatch } from './RoundStopwatch';
 import { useFullscreen } from '../../ui/use-fullscreen';
 
@@ -29,8 +22,6 @@ export type RoundStageProps = {
   readonly progress: ReactNode;
   /** Полоса вариантов под картой; не передана — полосы нет, карта выше. */
   readonly choices?: ReactNode;
-  /** Содержимое панели «Ответить из списка»; не передано — кнопки нет. */
-  readonly answerList?: ReactNode;
   /**
    * Настройки показа карты — переключатель вида рельефа. Стоят в строке
    * действий, а не на карте: любой угол листа в раунде занят целями
@@ -75,40 +66,12 @@ export function RoundStage({
   startedAt,
   progress,
   choices,
-  answerList,
   tools,
   onExit,
   children,
 }: RoundStageProps) {
   const stageRef = useRef<HTMLElement>(null);
-  const listButtonRef = useRef<HTMLButtonElement>(null);
-  const panelRef = useRef<HTMLDivElement>(null);
-  /*
-   * Связка кнопки с панелью для читалки: aria-expanded говорит «открыто»,
-   * aria-controls — «что именно». Ссылка на отсутствующий узел допустима,
-   * пока панель закрыта и не отрисована.
-   */
-  const panelId = useId();
-  const [isListOpen, setIsListOpen] = useState(false);
   const fullscreen = useFullscreen(stageRef);
-
-  // Фокус уходит в открытую панель: следующий Tab — уже по списку.
-  useEffect(() => {
-    if (isListOpen) {
-      panelRef.current?.focus();
-    }
-  }, [isListOpen]);
-
-  function closeList() {
-    setIsListOpen(false);
-    listButtonRef.current?.focus();
-  }
-
-  function handlePanelKeyDown(event: KeyboardEvent<HTMLDivElement>) {
-    if (event.key === 'Escape') {
-      closeList();
-    }
-  }
 
   return (
     <main className="round-stage" ref={stageRef}>
@@ -136,22 +99,7 @@ export function RoundStage({
           </p>
         )}
       </div>
-      <div className="stage-map">
-        {children}
-        {answerList !== undefined && isListOpen ? (
-          <div
-            className="stage-answer-panel"
-            id={panelId}
-            ref={panelRef}
-            tabIndex={-1}
-            role="group"
-            aria-label="Ответ из списка"
-            onKeyDown={handlePanelKeyDown}
-          >
-            {answerList}
-          </div>
-        ) : null}
-      </div>
+      <div className="stage-map">{children}</div>
       {choices !== undefined ? (
         <div className="stage-choices-band">{choices}</div>
       ) : null}
@@ -159,18 +107,6 @@ export function RoundStage({
         <RoundStopwatch startedAt={startedAt} />
         {tools === undefined ? null : <div className="stage-strip-tools">{tools}</div>}
         <div className="stage-strip-actions">
-          {answerList !== undefined ? (
-            <button
-              type="button"
-              className="stage-strip-button"
-              ref={listButtonRef}
-              aria-expanded={isListOpen}
-              aria-controls={panelId}
-              onClick={() => (isListOpen ? closeList() : setIsListOpen(true))}
-            >
-              Ответить из списка
-            </button>
-          ) : null}
           {fullscreen.isAvailable ? (
             <button
               type="button"

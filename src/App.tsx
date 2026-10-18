@@ -59,7 +59,6 @@ import {
   FillMapResultsPage,
   FillMapRound,
   CountryRound,
-  NeighboursRound,
   OrderRound,
   PhysicalRound,
   prefetchScreens,
@@ -93,7 +92,6 @@ type Screen =
   | 'results'
   | 'fill'
   | 'fill-results'
-  | 'neighbours-exercise'
   | 'country-exercise'
   | 'order-exercise';
 
@@ -249,8 +247,6 @@ export default function App() {
   const [seed, setSeed] = useState(() => Math.floor(Math.random() * 2 ** 31));
   const [lastAttempts, setLastAttempts] = useState<readonly Attempt[]>([]);
   const [fillRound, setFillRound] = useState<FillRound | null>(null);
-  const [neighboursPool, setNeighboursPool] =
-    useState<readonly Region[]>(regions);
   const [countryPool, setCountryPool] = useState<readonly Country[]>(countries);
   const [countryExerciseType, setCountryExerciseType] =
     useState<CountryExerciseType>('find-on-map');
@@ -514,28 +510,6 @@ export default function App() {
   }
 
   /**
-   * Игра «соседи»: отдельный экран и свой движок, как у заполнения карты.
-   * Поэтому запуск свой, а не ветка в `startRound`.
-   *
-   * Пул нужен повтору ошибок: он спрашивает те же регионы той же игрой, а не
-   * подсовывает «найти на карте» — форма вопроса там другая.
-   */
-  function startNeighboursPool(
-    nextLanguage: QuestionLanguage,
-    pool: readonly Region[],
-  ) {
-    setLanguage(nextLanguage);
-    setNeighboursPool(pool);
-    setRoundId(newRoundId());
-    setSeed(Math.floor(Math.random() * 2 ** 31));
-    setScreen('neighbours-exercise');
-  }
-
-  function startNeighboursRound(nextLanguage: QuestionLanguage) {
-    startNeighboursPool(nextLanguage, regions);
-  }
-
-  /**
    * Игры по странам: цели из своего справочника, поэтому запуск свой. Пул
    * нужен повтору ошибок — он спрашивает те же страны той же игрой.
    */
@@ -608,22 +582,6 @@ export default function App() {
     commitAttempts(attempts);
     setLastAttempts(attempts);
     setScreen('results');
-  }
-
-  if (screen === 'neighbours-exercise') {
-    return (
-      <AppFrame fillsFrame guardsLeave current={null} onNavigate={navigate}>
-        <NeighboursRound
-          regions={regions}
-          askedPool={neighboursPool}
-          language={language}
-          roundId={roundId}
-          seed={seed}
-          onFinish={(round) => finishRound(round.attempts)}
-          onExit={goToModes}
-        />
-      </AppFrame>
-    );
   }
 
   if (screen === 'country-exercise') {
@@ -809,7 +767,6 @@ export default function App() {
     const isHistoryRound = roundKind === 'history';
     const isCultureRound = roundKind === 'collection';
     const isLandmarkRound = roundKind === 'landmark';
-    const isNeighboursRound = roundKind === 'neighbours';
     const isCountryRound = roundKind === 'country';
     /*
      * Набор повтора — ошибки этого раунда, те же, что показаны списком
@@ -932,14 +889,6 @@ export default function App() {
               return;
             }
 
-            if (isNeighboursRound) {
-              startNeighboursPool(
-                language,
-                regions.filter((region) => repeatIds.includes(region.id)),
-              );
-              return;
-            }
-
             if (isCountryRound) {
               startCountryPool(countryExerciseType, language, repeatCountries);
               return;
@@ -978,11 +927,6 @@ export default function App() {
 
             if (isCultureRound) {
               startCulturePool(language, culturePool);
-              return;
-            }
-
-            if (isNeighboursRound) {
-              startNeighboursRound(language);
               return;
             }
 
@@ -1055,7 +999,6 @@ export default function App() {
           attempts={progress.attempts}
           onStartRound={startRound}
           onStartFillRound={startFillRound}
-          onStartNeighboursRound={startNeighboursRound}
           onStartCountryRound={startCountryRound}
           onStartCityRound={startCityRound}
           onStartCultureRound={startCultureRound}

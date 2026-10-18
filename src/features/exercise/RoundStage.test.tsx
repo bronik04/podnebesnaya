@@ -77,41 +77,6 @@ it('с Fullscreen API кнопка разворачивает оболочку',
   expect(request).toHaveBeenCalledTimes(1);
 });
 
-it('панель списка открывается кнопкой, закрывается Esc с возвратом фокуса', () => {
-  renderStage({ answerList: <p>список целей</p> });
-
-  const toggle = screen.getByRole('button', { name: 'Ответить из списка' });
-  expect(toggle.getAttribute('aria-expanded')).toBe('false');
-  expect(screen.queryByText('список целей')).toBeNull();
-
-  fireEvent.click(toggle);
-  expect(toggle.getAttribute('aria-expanded')).toBe('true');
-  const panel = screen.getByRole('group', { name: 'Ответ из списка' });
-  expect(screen.getByText('список целей')).toBeTruthy();
-  expect(document.activeElement).toBe(panel);
-
-  fireEvent.keyDown(panel, { key: 'Escape' });
-  expect(screen.queryByText('список целей')).toBeNull();
-  expect(document.activeElement).toBe(toggle);
-});
-
-it('без слота списка кнопки «Ответить из списка» нет', () => {
-  renderStage();
-
-  expect(screen.queryByRole('button', { name: 'Ответить из списка' })).toBeNull();
-});
-
-it('кнопка списка связана с панелью через aria-controls', () => {
-  renderStage({ answerList: <p>список целей</p> });
-  const toggle = screen.getByRole('button', { name: 'Ответить из списка' });
-
-  fireEvent.click(toggle);
-
-  const panel = screen.getByRole('group', { name: 'Ответ из списка' });
-  expect(toggle.getAttribute('aria-controls')).toBe(panel.id);
-  expect(panel.id).not.toBe('');
-});
-
 it('называет игру над ходом раунда', () => {
   renderStage({ title: 'Регионы · Найти на карте' });
 

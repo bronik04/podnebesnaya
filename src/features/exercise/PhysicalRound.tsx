@@ -26,7 +26,6 @@ import {
   PHYSICAL_MODES,
   roundTitle,
 } from './exercise-modes';
-import { PhysicalAnswerList } from './PhysicalAnswerList';
 import { RoundProgressTrail } from './RoundProgressTrail';
 import { verdictOf } from './answer-states';
 import { RoundStage } from './RoundStage';
@@ -188,10 +187,6 @@ export function PhysicalRound({
    * Ответ нажатием по карте. Попадание в часть засчитывается целому: ущелья
    * лежат на Янцзы, и при вопросе о реке нажатие по ним — верный ответ.
    * Обратное неверно: когда спрошены ущелья, годится только сам отрезок.
-   *
-   * Послабление живёт только здесь, у карты. В равнозначном списке оба имени
-   * стоят отдельными кнопками, и выбор «Три ущелья» на вопрос о Янцзы — это
-   * другой ответ, а не неточное попадание пальцем.
    */
   function handleFeatureSelect(featureId: string) {
     if (showsChoices) {
@@ -200,15 +195,6 @@ export function PhysicalRound({
 
     const whole = partOfFeature(featureId);
     answer(whole === question.target.id ? whole : featureId);
-  }
-
-  /** Ответ из списка: имена там названы прямо, и послабления карты не нужны. */
-  function handleNameSelect(featureId: string) {
-    if (showsChoices) {
-      return;
-    }
-
-    answer(featureId);
   }
 
   const showsAnswer = round.status === 'feedback' && lastAttempt?.isCorrect === false;
@@ -285,23 +271,6 @@ export function PhysicalRound({
             choices={stageChoices}
             disabled={round.status !== 'ready'}
             onChoose={answer}
-          />
-        ) : undefined
-      }
-      answerList={
-        exerciseType === 'find-on-map' ? (
-          /*
-           * Список равнозначен карте, а на ней нарисован весь справочник, а не
-           * пул: ответить нажатием можно по любому объекту, значит и в списке
-           * обязаны стоять все. Тот же довод, что у отвлекающих выше.
-           */
-          <PhysicalAnswerList
-            features={physicalFeatures}
-            language={question.language}
-            answeredId={answeredId}
-            targetId={targetFeature.id}
-            disabled={round.status !== 'ready'}
-            onSelect={handleNameSelect}
           />
         ) : undefined
       }

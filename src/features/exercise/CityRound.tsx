@@ -19,7 +19,6 @@ import {
 import { ChinaMap } from '../../map/ChinaMap';
 import type { MapZoom } from '../../map/MapControls';
 import { answerStatesFor, verdictOf } from './answer-states';
-import { CityAnswerList } from './CityAnswerList';
 import {
   CITY_MODES,
   roundTitle,
@@ -49,7 +48,7 @@ export type CityRoundProps = {
   /**
    * Пул раунда: какие города спрашиваются. Набор выбирается перед стартом, а
    * на «Повторить ошибки» пул сужается до ошибочных, — справочником он не
-   * является: отвлекающие и равнозначный список берут `allCities`.
+   * является: отвлекающие и точки на карте берут `allCities`.
    */
   readonly cities: readonly City[];
   readonly exerciseType: ExerciseType;
@@ -127,7 +126,7 @@ export function CityRound({
   const mode = CITY_MODES[exerciseType];
   const lastAttempt = round.attempts[round.attempts.length - 1];
 
-  /** Чем отвечают: точкой города, именем из списка или областью региона. */
+  /** Чем отвечают: точкой города, именем из вариантов или областью региона. */
   const answersWithRegion = exerciseType === 'match-pair';
   const showsChoices = exerciseType === 'name-target';
   const regionOfTarget = regions.find((region) => region.id === targetCity.regionId)!;
@@ -261,23 +260,6 @@ export function CityRound({
             choices={stageChoices}
             disabled={round.status !== 'ready'}
             onChoose={answer}
-          />
-        ) : undefined
-      }
-      answerList={
-        exerciseType === 'find-on-map' ? (
-          /*
-           * Список равнозначен карте, а карта рисует точки всего справочника,
-           * а не пула: ответить нажатием можно по любому городу, значит и в
-           * списке обязаны стоять все.
-           */
-          <CityAnswerList
-            cities={allCities}
-            language={question.language}
-            answeredId={answeredId}
-            targetId={targetCity.id}
-            disabled={round.status !== 'ready'}
-            onSelect={handleCitySelect}
           />
         ) : undefined
       }

@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { CORRECT_PAUSE_MS, WRONG_PAUSE_MS } from './round-pace';
 import { expect, it, vi } from 'vitest';
 import {
@@ -42,13 +42,21 @@ function renderRound(
   return { container, onFinish, onExit };
 }
 
-/** Список — в панели оболочки: перед ответом её нужно открыть. */
-function openAnswerList() {
-  const toggle = screen.getByRole('button', { name: 'Ответить из списка' });
-  if (toggle.getAttribute('aria-expanded') !== 'true') {
-    fireEvent.click(toggle);
-  }
-}
+/*
+ * Пул сужается на «Повторить ошибки», справочник — нет: на карте нарисованы
+ * все объекты, иначе в повторе одной ошибки на ней остался бы один — он же
+ * ответ.
+ */
+it('в повторе одного объекта карта рисует весь справочник', () => {
+  const { container } = renderRound('find-on-map', physicalFeatures.slice(0, 1));
+
+  const onMap = new Set(
+    [...container.querySelectorAll('[data-feature-id]')].map(
+      (mark) => mark.getAttribute('data-feature-id') ?? '',
+    ),
+  );
+  expect(onMap.size).toBeGreaterThan(1);
+});
 
 it('спрашивает все объекты подряд', () => {
   renderRound('find-on-map');
@@ -89,26 +97,27 @@ it('в «назвать» даёт четыре имени того же вид�
   expect(new Set(kinds).size).toBe(1);
 });
 
-/*
- * Имя объекта есть и у формы на карте, и у кнопки равнозначного списка — это
- * два способа ответить на один вопрос, как у городов. Поэтому список
- * спрашивается отдельно, а не общим поиском по имени.
+/**
+ * Ответ — объектом карты с клавиатуры: нажатие указателем карта разбирает
+ * сама (отличает касание от сдвига), а Enter на цели — тот же ответ без этой
+ * разборки. Доступное имя цели — «название, 中文»; у реки несколько кусков
+ * линии, отвечает любой.
  */
-function answerFromList(nameRu: string) {
-  openAnswerList();
-  const list = screen.getByRole('list', { name: 'Список объектов' });
-
-  fireEvent.click(within(list).getByRole('button', { name: nameRu }));
+function answerOnMap(nameRu: string) {
+  fireEvent.keyDown(
+    screen.getAllByRole('button', { name: new RegExp(`^${nameRu}, `) })[0],
+    { key: 'Enter' },
+  );
 }
 
-it('верный ответ из списка ведёт к следующему вопросу', () => {
+it('верный ответ на карте ведёт к следующему вопросу', () => {
   vi.useFakeTimers();
   try {
     renderRound('find-on-map');
 
     const asked = screen.getByTestId('exercise-target').textContent!;
 
-    answerFromList(asked);
+    answerOnMap(asked);
     act(() => {
       vi.advanceTimersByTime(CORRECT_PAUSE_MS);
     });
@@ -128,7 +137,7 @@ it('после ошибки называет верный объект и еде
     const target = physicalFeatures.find((feature) => feature.nameRu === asked)!;
     const wrong = physicalFeatures.find((feature) => feature.nameRu !== asked)!;
 
-    answerFromList(wrong.nameRu);
+    answerOnMap(wrong.nameRu);
 
     expect(screen.getByText('Этот объект стоит повторить')).toBeTruthy();
     const stated = screen.getByTestId('exercise-target').textContent!;
@@ -186,15 +195,6 @@ it('озеро отвлекают только озёрами: знак от з�
   expect(new Set(kinds)).toEqual(new Set(['lake']));
 });
 
-it('на 320 px список отвечает за все тридцать девять объектов', () => {
-  renderRound('find-on-map', physicalFeaturesUpTo('all'));
-
-  openAnswerList();
-  const list = screen.getByRole('list', { name: 'Список объектов' });
-
-  expect(within(list).getAllByRole('button')).toHaveLength(41);
-});
-
 it('каждый набор спрашивает свои цели ровно по разу', () => {
   for (const [set, length] of [
     /* Ущелья входят с первого набора: они рядом со своей рекой. Канал — тоже: он линия, как реки. */
@@ -216,27 +216,6 @@ it('каждый набор спрашивает свои цели ровно п
     expect(round.questions, `набор ${set}`).toHaveLength(length);
     expect(new Set(round.questions.map((q) => q.target.id)).size).toBe(length);
   }
-});
-
-/*
- * Пул сужается на «Повторить ошибки», справочник — нет. Отвлекающие это уже
- * учитывают, а равнозначный список — нет: на карте нарисованы все объекты, и
- * список обязан предлагать то же, иначе в повторе одной ошибки в нём остаётся
- * одна кнопка — она же ответ.
- */
-it('в повторе одного объекта список предлагает весь справочник', () => {
-  renderRound('find-on-map', physicalFeatures.slice(0, 1));
-
-  const toggle = screen.getByRole('button', { name: 'Ответить из списка' });
-  if (toggle.getAttribute('aria-expanded') !== 'true') {
-    fireEvent.click(toggle);
-  }
-
-  expect(
-    within(screen.getByRole('list', { name: 'Список объектов' })).getAllByRole(
-      'button',
-    ),
-  ).toHaveLength(physicalFeatures.length);
 });
 
 /*
@@ -277,30 +256,6 @@ it('в вопросе об ущельях попадание в другую ч�
     const { container, onFinish } = renderRound('find-on-map', [gorges]);
 
     answerOnLine(container, 'yangtze');
-    act(() => {
-      vi.advanceTimersByTime(CORRECT_PAUSE_MS + WRONG_PAUSE_MS);
-    });
-
-    expect(onFinish).toHaveBeenCalledOnce();
-    expect(onFinish.mock.calls[0][0][0].isCorrect).toBe(false);
-  } finally {
-    vi.useRealTimers();
-  }
-});
-
-/*
- * Послабление «часть засчитывается целому» — про неточное попадание пальцем по
- * карте. В списке оба имени стоят отдельными кнопками, и «Три ущелья» на
- * вопрос о Янцзы — другой ответ, а не промах.
- */
-it('в списке «Три ущелья» не засчитываются за Янцзы', () => {
-  vi.useFakeTimers();
-  try {
-    const yangtze = physicalFeatures.find((one) => one.id === 'yangtze')!;
-    const { onFinish } = renderRound('find-on-map', [yangtze]);
-
-    openAnswerList();
-    answerFromList('Три ущелья');
     act(() => {
       vi.advanceTimersByTime(CORRECT_PAUSE_MS + WRONG_PAUSE_MS);
     });

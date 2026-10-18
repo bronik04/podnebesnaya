@@ -44,11 +44,6 @@ import {
 } from '../src/map/validate-map';
 import { PALETTE_INPUTS_FINGERPRINT } from '../src/map/region-palette';
 import {
-  NEIGHBOURS_INPUTS_FINGERPRINT,
-  REGION_NEIGHBOURS,
-} from '../src/map/region-neighbours';
-import { neighboursOf, shapesFrom } from './generate-region-neighbours';
-import {
   COUNTRIES_INPUTS_FINGERPRINT,
   COUNTRY_SHAPES,
 } from '../src/map/country-geometry';
@@ -304,35 +299,6 @@ if (expectedPaletteFingerprint !== PALETTE_INPUTS_FINGERPRINT) {
 }
 
 /*
- * Соседство — тем же приёмом: граф собран из контуров, и сдвинутый контур
- * оставил бы его прежним при зелёной сборке.
- */
-if (expectedPaletteFingerprint !== NEIGHBOURS_INPUTS_FINGERPRINT) {
-  throw new Error(
-    `Граф соседства собран из других контуров: в файле ${NEIGHBOURS_INPUTS_FINGERPRINT}, ` +
-      `у нынешних ${expectedPaletteFingerprint}. Запустите npm run generate:neighbours`,
-  );
-}
-
-/*
- * Порог соприкосновения обязан стоять на плато. Замерено: с 0.5 до 2.0 единиц
- * граф не меняется, ниже 0.2 разваливается. Если после правки геометрии ответ
- * станет зависеть от выбранного числа, лучше уронить сборку, чем спросить у
- * ученика вопрос, у которого нет верного ответа.
- */
-const wideNeighbours = neighboursOf(shapesFrom(svg), 2);
-for (const [regionId, list] of Object.entries(REGION_NEIGHBOURS)) {
-  const narrow = [...list].sort().join(' ');
-  const wide = [...(wideNeighbours[regionId] ?? [])].sort().join(' ');
-  if (narrow !== wide) {
-    throw new Error(
-      `Соседство ${regionId} зависит от порога: при 0.5 «${narrow}», ` +
-        `при 2.0 «${wide}». Порог съехал с плато — проверьте геометрию.`,
-    );
-  }
-}
-
-/*
  * Слой стран — тем же приёмом: он собран из выжимки, и подменённая выжимка без
  * перегенерации оставила бы на карте прежние очертания при зелёной сборке.
  */
@@ -348,8 +314,9 @@ if (expectedCountriesFingerprint !== COUNTRIES_INPUTS_FINGERPRINT) {
 
 /*
  * Сколько стран мельче порога нажатия. Не роняет сборку: Бутан мал сам по
- * себе, и это не дефект карты, а его размер. Число объясняет, почему такие
- * страны отвечаются из равнозначного списка.
+ * себе, и это не дефект карты, а его размер. Число называет цели, которые
+ * берутся только точным нажатием или с клавиатуры: равнозначный список снят
+ * решением владельца от 2026-10-18, и это осознанное отступление от WCAG 2.5.8.
  *
  * Счёт идёт по расширенному кадру, на котором эти игры и показывают карту: в
  * ту же ширину экрана влезает в 1.3 раза больше единиц, и та же страна на нём
