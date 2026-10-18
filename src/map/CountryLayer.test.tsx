@@ -92,3 +92,20 @@ it('без ответа по карте контуры перестают быт
     container.querySelector('.country-layer')?.getAttribute('data-answers'),
   ).toBe('false');
 });
+
+/*
+ * Без Южной Кореи КНДР выглядела всем полуостровом, будто Корея — одна страна
+ * (решение владельца от 2026-10-18). Она фон, а не цель: сухопутной границы с
+ * Китаем у неё нет, и спрашивать о ней игра о соседях не может.
+ */
+it('Южная Корея нарисована фоном: ни роли, ни фокуса, ни имени', () => {
+  const { container } = renderLayer();
+  const southKorea = container.querySelector('[data-context-country-id="south-korea"]');
+
+  expect(southKorea).not.toBeNull();
+  expect(southKorea!.getAttribute('d')).not.toBe('');
+  expect(southKorea).not.toHaveAttribute('role');
+  expect(southKorea).not.toHaveAttribute('tabindex');
+  expect(southKorea).toHaveAttribute('aria-hidden', 'true');
+  expect(screen.getAllByRole('button')).toHaveLength(countries.length);
+});

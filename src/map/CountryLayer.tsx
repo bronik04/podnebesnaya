@@ -1,5 +1,9 @@
 import { countryById } from '../content/countries';
-import { COUNTRY_SHAPES, DISPUTED_SHAPES } from './country-geometry';
+import {
+  CONTEXT_SHAPES,
+  COUNTRY_SHAPES,
+  DISPUTED_SHAPES,
+} from './country-geometry';
 import type { AnswerState } from './region-selection';
 
 export type CountryLayerProps = {
@@ -40,6 +44,22 @@ export function CountryLayer({
 }: CountryLayerProps) {
   return (
     <g className="country-layer" data-answers={answers}>
+      {/*
+        Фоновые страны — Южная Корея — рисуются той же сушей, но целью не
+        бывают: ни роли, ни фокуса, ни имени, нажатие проходит сквозь них. Без
+        Южной Кореи КНДР выглядела всем полуостровом (решение владельца от
+        2026-10-18).
+      */}
+      {CONTEXT_SHAPES.map((shape) => (
+        <path
+          key={shape.id}
+          className="country-context"
+          d={shape.d}
+          data-context-country-id={shape.id}
+          aria-hidden="true"
+        />
+      ))}
+
       {COUNTRY_SHAPES.map((shape) => {
         const country = countryById(shape.id);
         const answerState = answerStates[shape.id];

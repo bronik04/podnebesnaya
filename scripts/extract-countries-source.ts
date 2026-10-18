@@ -60,6 +60,16 @@ const ADMIN_TO_ID: Readonly<Record<string, string>> = {
 };
 
 /**
+ * Фоновые страны: на карте есть, но целью не бывают. Сухопутной границы с
+ * Китаем у них нет, а без них карта врёт — без Южной Кореи КНДР выглядела всем
+ * полуостровом (решение владельца от 2026-10-18). Прочие страны без границы
+ * владелец брать не стал.
+ */
+const CONTEXT_ADMIN_TO_ID: Readonly<Record<string, string>> = {
+  'South Korea': 'south-korea',
+};
+
+/**
  * Спорные участки перечислены поимённо, а не отобраны по упоминанию Китая:
  * тем же признаком набор помечает Парасельские острова, Спратли и Сенкаку, а
  * игра о сухопутной границе.
@@ -130,6 +140,26 @@ if (missingCountries.length > 0) {
   throw new Error(`Не найдены страны: ${missingCountries.join(', ')}`);
 }
 
+const context = countryFeatures
+  .filter(
+    (feature) =>
+      feature.geometry !== null &&
+      Object.hasOwn(CONTEXT_ADMIN_TO_ID, feature.properties.ADMIN as string),
+  )
+  .map((feature) => ({
+    id: CONTEXT_ADMIN_TO_ID[feature.properties.ADMIN as string],
+    rings: polygonRings(feature.geometry as Geometry).map((ring) =>
+      ring.map(round),
+    ),
+  }));
+
+const missingContext = Object.values(CONTEXT_ADMIN_TO_ID).filter(
+  (id) => !context.some((one) => one.id === id),
+);
+if (missingContext.length > 0) {
+  throw new Error(`Не найдены фоновые страны: ${missingContext.join(', ')}`);
+}
+
 const disputedFeatures = await load('ne_10m_admin_0_disputed_areas');
 const disputed = disputedFeatures
   .filter(
@@ -162,10 +192,11 @@ if (missingDisputed.length > 0) {
  */
 writeFileSync(
   OUT,
-  `${JSON.stringify({ countries: extracted, disputed })}\n`,
+  `${JSON.stringify({ countries: extracted, context, disputed })}\n`,
   'utf8',
 );
 
 console.info(
-  `Выжимка: стран ${extracted.length}, спорных участков ${disputed.length}`,
+  `Выжимка: стран ${extracted.length}, фоновых ${context.length}, ` +
+    `спорных участков ${disputed.length}`,
 );
