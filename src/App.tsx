@@ -213,6 +213,7 @@ const FILL_REFERENCE: Readonly<Record<FillKind, readonly NamedTarget[]>> = {
   region: regions,
   country: countries,
   city: cities,
+  physical: physicalFeatures,
 };
 
 export default function App() {
@@ -232,6 +233,8 @@ export default function App() {
    * в повторе — та рисует весь набор, а не только ошибки.
    */
   const [citySet, setCitySet] = useState<CitySet>('capital');
+  /* Набор физической карты — для «Новый раунд» лёгкого уровня. */
+  const [physicalSet, setPhysicalSet] = useState<PhysicalSet>('all');
   const [landmarkPool, setLandmarkPool] = useState<readonly Landmark[]>([]);
   /*
    * Двенадцать целей всегда; сужается пул только «Повторить ошибки». Набор
@@ -641,6 +644,27 @@ export default function App() {
     startCityRound('find-on-map', nextLanguage, set);
   }
 
+  /**
+   * «Найти объект» на уровне — по тому же правилу, что `startFindRegions`.
+   * Набор задаёт, что спрашивают; карта на обоих уровнях рисует все объекты.
+   */
+  function startFindPhysical(
+    nextLanguage: QuestionLanguage,
+    set: PhysicalSet,
+    level: Difficulty = difficulty,
+  ) {
+    setPhysicalSet(set);
+    if (level === 'easy') {
+      startFillRound(
+        'physical',
+        nextLanguage,
+        physicalFeaturesUpTo(set).map((feature) => feature.id),
+      );
+      return;
+    }
+    startPhysicalRound('find-on-map', nextLanguage, set);
+  }
+
   /** «Найти страну» на уровне — по тому же правилу, что `startFindRegions`. */
   function startFindCountries(
     nextLanguage: QuestionLanguage,
@@ -735,6 +759,8 @@ export default function App() {
         <FillMapRound
           kind={fillKind}
           targets={fillPool}
+          reliefStyle={reliefStyle}
+          onReliefStyleChange={setReliefStyle}
           mapIds={
             fillKind === 'city'
               ? citiesUpTo(citySet).map((city) => city.id)
@@ -761,18 +787,17 @@ export default function App() {
               ? countriesWord
               : fillKind === 'city'
                 ? citiesWord
-                : regionsWord
+                : fillKind === 'physical'
+                  ? featuresWord
+                  : regionsWord
           }
-          /* Карта исходов и справочник есть только у регионов: у стран нет
-             карточек, а исход по стране карта итогов пока не показывает. */
+          /* Карта исходов есть только у регионов: исход по стране, городу или
+             объекту карта итогов пока не показывает. Ссылки «В справочник» —
+             у всех, у кого есть карточка (у стран её нет). */
           roundMap={
             fillKind === 'region' ? <FillOutcomesMap round={fillRound} /> : undefined
           }
-          referenceOf={
-            fillKind === 'region'
-              ? (regionId) => referenceFor('region', regionId)
-              : undefined
-          }
+          referenceOf={(targetId) => referenceFor(fillKind, targetId)}
           isProgressSaved={store.isAvailable}
           onRepeatMistakes={() =>
             startFillRound(
@@ -784,7 +809,9 @@ export default function App() {
           onNewRound={() =>
             fillKind === 'city'
               ? startFindCities(language, citySet, 'easy')
-              : startFillRound(fillKind, language, null)
+              : fillKind === 'physical'
+                ? startFindPhysical(language, physicalSet, 'easy')
+                : startFillRound(fillKind, language, null)
           }
           onExit={goToModes}
         />
@@ -1185,6 +1212,10 @@ export default function App() {
           onStartHistoryRound={startHistoryRound}
           onStartPhysicalRound={(exerciseType, nextLanguage, set, level) => {
             setDifficulty(level);
+            if (exerciseType === 'find-on-map') {
+              startFindPhysical(nextLanguage, set, level);
+              return;
+            }
             startPhysicalRound(exerciseType, nextLanguage, set);
           }}
           onStartLandmarkRound={(exerciseType, nextLanguage, set, level) => {

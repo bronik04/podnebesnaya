@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { partOfFeature } from '../../content/physical-features';
 import { regions as allRegions } from '../../content/regions';
 import {
   answerFillRound,
@@ -13,6 +14,7 @@ import { createSeededRandom } from '../../domain/random';
 import { labelOf, langOf, type QuestionLanguage } from '../../domain/question-language';
 import { ChinaMap, type MapHighlight } from '../../map/ChinaMap';
 import type { MapZoom } from '../../map/MapControls';
+import { ReliefStyleToggle, type ReliefStyle } from '../../map/ReliefStyleToggle';
 import { markOutcomeOf, type MarkOutcome } from '../../map/mark-outcome';
 import { COUNTRY_FRAME_OUTSET } from '../../map/target-size';
 import type { NamedTarget } from '../results/RoundResultsPage';
@@ -33,7 +35,7 @@ export const MISS_FLASH_MS = 600;
  * Вид целей лёгкого уровня. Ход у всех один — заполнение карты; различаются
  * слой карты и слова. Виды добавляются по шагам плана уровней сложности.
  */
-export type FillKind = 'region' | 'country' | 'city';
+export type FillKind = 'region' | 'country' | 'city' | 'physical';
 
 type KindWords = {
   readonly title: string;
@@ -61,7 +63,27 @@ const WORDS: Readonly<Record<FillKind, KindWords>> = {
     miss: 'Не этот город.',
     revealed: 'Попытки кончились. Город показан на карте.',
   },
+  physical: {
+    title: 'find-physical',
+    ask: 'Найдите объект на карте.',
+    miss: 'Не этот объект.',
+    revealed: 'Попытки кончились. Объект показан на карте.',
+  },
 };
+
+/**
+ * Какой ответ записать по нажатию. Обычно — саму цель под пальцем; у
+ * физической карты участок реки засчитывается целой реке, когда спрошена
+ * она: ущелья лежат на Янцзы, и ткнувший в самое узнаваемое её место не
+ * должен получать ошибку (то же правило, что в `PhysicalRound`).
+ */
+function resolveAnswer(kind: FillKind, pickedId: string, targetId: string): string {
+  if (kind === 'physical' && partOfFeature(pickedId) === targetId) {
+    return targetId;
+  }
+
+  return pickedId;
+}
 
 export type FillMapRoundProps = {
   readonly kind: FillKind;
@@ -77,6 +99,9 @@ export type FillMapRoundProps = {
    * ошибки тоже весь набор, а не одну точку — иначе она и есть ответ.
    */
   readonly mapIds?: readonly string[];
+  /** Вид рельефа физической карты: держит `App`, общий с атласом. */
+  readonly reliefStyle?: ReliefStyle;
+  readonly onReliefStyleChange?: (style: ReliefStyle) => void;
   readonly language: QuestionLanguage;
   readonly roundId: string;
   readonly seed: number;
@@ -88,6 +113,8 @@ export function FillMapRound({
   kind,
   targets,
   mapIds,
+  reliefStyle = 'color',
+  onReliefStyleChange,
   language,
   roundId,
   seed,
@@ -207,7 +234,10 @@ export function FillMapRound({
     return marks;
   }, [missedRegionId, revealedRegionId, round.outcomes]);
 
-  function handleSelect(regionId: string) {
+  function handleSelect(pickedId: string) {
+    const regionId = finished
+      ? pickedId
+      : resolveAnswer(kind, pickedId, currentTarget(round).targetId);
     /*
      * Закрытая цель ответа не принимает: повторное нажатие не должно стоить
      * попытки. У регионов это держит ещё и правило карты, у прочих — только
@@ -287,6 +317,15 @@ export function FillMapRound({
   return (
     <RoundStage
       title={roundTitle(words.title)}
+      tools={
+        kind === 'physical' && onReliefStyleChange !== undefined ? (
+          <ReliefStyleToggle
+            name="round-relief"
+            value={reliefStyle}
+            onChange={onReliefStyleChange}
+          />
+        ) : undefined
+      }
       prompt={prompt}
       // Показ неугаданного региона идёт на карте (`mapHighlight`); плашка уже
       // задаёт следующий вопрос, и метить её кромкой ответа было бы неверно.
@@ -343,6 +382,29 @@ export function FillMapRound({
           onSelectCountry={handleSelect}
           countryOutcomes={markOutcomes}
         />
+      ) : kind === 'physical' ? (
+        /*
+         * Карта та же, что в сложной «Найти объект» (`PhysicalRound`), и на
+         * обоих уровнях вся: реки и горы — сама карта, без них теряются
+         * ориентиры (решение владельца от 2026-10-18).
+         */
+        <div className="relief-scope" data-relief={reliefStyle}>
+          <ChinaMap
+            regions={allRegions}
+            selectedRegionId={null}
+            onSelect={() => {}}
+            onClear={() => {}}
+            interactive={false}
+            zoom={zoom}
+            onZoomChange={setZoom}
+            usage="answer"
+            variant="physical"
+            selectedFeatureId={revealedRegionId}
+            onSelectFeature={handleSelect}
+            showsPhysicalLabels={false}
+            featureOutcomes={markOutcomes}
+          />
+        </div>
       ) : (
         /* Карта та же, что в сложной «Найти город» (`CityRound`), но с набором. */
         <ChinaMap

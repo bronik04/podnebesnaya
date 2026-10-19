@@ -394,8 +394,9 @@ it('запускает раунд по физической географии �
   fireEvent.click(screen.getByRole('button', { name: 'Начать' }));
   await settle();
 
-  // Без выбора берётся первый набор — реки, их участки, канал и формы.
-  expect(screen.getByText(/Вопрос 1 из 21/)).toBeInTheDocument();
+  // Без выбора берётся первый набор — реки, их участки, канал и формы — и
+  // лёгкий уровень: заполнение карты.
+  expect(screen.getByText(/Закрашено 0 из 21/)).toBeInTheDocument();
 });
 
 it('набор перед стартом задаёт длину физического раунда', async () => {
@@ -406,7 +407,7 @@ it('набор перед стартом задаёт длину физичес�
   fireEvent.click(screen.getByRole('button', { name: 'Начать' }));
   await settle();
 
-  expect(screen.getByText(/Вопрос 1 из 41/)).toBeInTheDocument();
+  expect(screen.getByText(/Закрашено 0 из 41/)).toBeInTheDocument();
 });
 
 /** В заполнении по-русски спрошенный регион назван в плашке `fill-target`. */

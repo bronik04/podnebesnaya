@@ -1,6 +1,11 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { citiesUpTo } from '../../content/cities';
 import { countries, type Country } from '../../content/countries';
+import {
+  physicalFeatures,
+  physicalFeaturesUpTo,
+} from '../../content/physical-features';
+import { loadPhysicalMap } from '../../map/load-physical-map';
 import { regions } from '../../content/regions';
 import type { Region } from '../../content/types';
 import { FillMapRound, MISS_FLASH_MS, REVEAL_MS } from './FillMapRound';
@@ -340,5 +345,72 @@ describe('города', () => {
 
     expect(screen.getByTestId('fill-progress')).toHaveTextContent('Закрашено 0 из 1');
     expect(drawnCityIds(container)).toHaveLength(capitals.length);
+  });
+});
+
+describe('физическая карта', () => {
+  /* Физический слой приезжает отдельным куском — как в `PhysicalRound.test`. */
+  beforeAll(async () => {
+    await loadPhysicalMap();
+  });
+
+  function renderPhysicalRound(targets = physicalFeaturesUpTo('base')) {
+    const onFinish = vi.fn();
+    const view = render(
+      <FillMapRound
+        kind="physical"
+        targets={targets}
+        language="ru"
+        roundId="r1"
+        seed={1}
+        onFinish={onFinish}
+        onExit={() => {}}
+      />,
+    );
+
+    return { ...view, onFinish };
+  }
+
+  /* Линии и формы отвечают с клавиатуры: указателем в них целятся по координате. */
+  function answerOn(container: HTMLElement, featureId: string) {
+    fireEvent.keyDown(container.querySelector(`[role="button"][data-feature-id="${featureId}"]`)!, {
+      key: 'Enter',
+    });
+  }
+
+  function askedFeatureId(): string {
+    const name = screen.getByTestId('fill-target').textContent;
+
+    return physicalFeatures.find((feature) => feature.nameRu === name)!.id;
+  }
+
+  it('лёгкий уровень по физической карте помечает найденный объект', () => {
+    const { container } = renderPhysicalRound();
+
+    expect(screen.getByText('Найдите объект на карте.')).toBeInTheDocument();
+    const asked = askedFeatureId();
+    answerOn(container, asked);
+
+    expect(
+      container.querySelector(`[data-outcome][data-feature-id="${asked}"]`),
+    ).toHaveAttribute('data-outcome', 'correct');
+    expect(screen.getByTestId('fill-progress')).toHaveTextContent('Закрашено 1 из');
+  });
+
+  it('«Три ущелья» на вопрос о Янцзы засчитываются', () => {
+    const yangtze = physicalFeatures.find((one) => one.id === 'yangtze')!;
+    const { container, onFinish } = renderPhysicalRound([yangtze]);
+
+    answerOn(container, 'three-gorges');
+
+    expect(onFinish).toHaveBeenCalledOnce();
+    expect(onFinish.mock.calls[0][0].outcomes).toEqual({ yangtze: 'first-try' });
+  });
+
+  it('на лёгком уровне нарисованы все объекты, а не набор', () => {
+    const { container } = renderPhysicalRound();
+
+    expect(container.querySelectorAll('.relief-shape')).toHaveLength(38);
+    expect(container.querySelectorAll('.river-line')).toHaveLength(8);
   });
 });
