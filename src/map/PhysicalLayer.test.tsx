@@ -287,6 +287,20 @@ it('моря нарисованы вне маски суши и без пост�
     expect(screen.getAllByLabelText(/ — верно со второй попытки$/)).toHaveLength(3);
   });
 
+  it('за раунд участок реки не берёт исход целой реки', () => {
+    const { container } = renderLayer({
+      featureOutcomes: { yangtze: 'correct' },
+      outcomesAccumulate: true,
+    });
+
+    expect(
+      container.querySelector('.river-line[data-feature-id="yangtze"]'),
+    ).toHaveAttribute('data-outcome', 'correct');
+    expect(
+      container.querySelector('.river-line[data-feature-id="three-gorges"]'),
+    ).not.toHaveAttribute('data-outcome');
+  });
+
   it('без исходов признака нет ни у кого', () => {
     const { container } = renderLayer();
 

@@ -349,6 +349,35 @@ describe('города', () => {
   });
 });
 
+describe('закрытые цели у точек', () => {
+  it('нажатие по закрытому городу не тратит попытку', () => {
+    const capitals = citiesUpTo('capital');
+    // Два города далеко от прочих: оба стоят отдельно, не в грозди.
+    const far = capitals.filter((city) => ['urumqi', 'lhasa'].includes(city.id));
+    render(
+      <FillMapRound
+        kind="city"
+        targets={far}
+        mapIds={capitals.map((city) => city.id)}
+        language="ru"
+        roundId="r1"
+        seed={1}
+        onFinish={() => {}}
+        onExit={() => {}}
+      />,
+    );
+
+    const name = screen.getByTestId('fill-target').textContent!;
+    fireEvent.click(screen.getByRole('button', { name: new RegExp(`^${name}, `) }));
+    const closed = screen.getByRole('button', { name: new RegExp(`^${name}, .* — верно$`) });
+    expect(closed).toHaveAttribute('aria-disabled', 'true');
+    fireEvent.click(closed);
+
+    expect(screen.getByText('Попытка 1 из 3')).toBeInTheDocument();
+    expect(screen.queryByText(/Не этот город/)).toBeNull();
+  });
+});
+
 describe('физическая карта', () => {
   /* Физический слой приезжает отдельным куском — как в `PhysicalRound.test`. */
   beforeAll(async () => {
@@ -408,6 +437,21 @@ describe('физическая карта', () => {
     expect(onFinish.mock.calls[0][0].outcomes).toEqual({ yangtze: 'first-try' });
   });
 
+  it('найденная Янцзы не красит ещё не спрошенные «Три ущелья»', () => {
+    const pair = physicalFeatures.filter((one) =>
+      ['yangtze', 'three-gorges'].includes(one.id),
+    );
+    const { container } = renderPhysicalRound(pair);
+
+    const first = askedFeatureId();
+    answerOn(container, first);
+    const other = first === 'yangtze' ? 'three-gorges' : 'yangtze';
+
+    expect(
+      container.querySelector(`.river-line[data-feature-id="${other}"]`),
+    ).not.toHaveAttribute('data-outcome');
+  });
+
   it('на лёгком уровне нарисованы все объекты, а не набор', () => {
     const { container } = renderPhysicalRound();
 
@@ -420,6 +464,7 @@ describe('достопримечательности', () => {
   function renderLandmarkRound(
     targets: ReturnType<typeof landmarksUpTo>,
     mapIds: readonly string[],
+    seed = 1,
   ) {
     const onFinish = vi.fn();
     const view = render(
@@ -429,7 +474,7 @@ describe('достопримечательности', () => {
         mapIds={mapIds}
         language="ru"
         roundId="r1"
-        seed={1}
+        seed={seed}
         onFinish={onFinish}
         onExit={() => {}}
       />,
@@ -453,6 +498,53 @@ describe('достопримечательности', () => {
     expect(singles.every((id) => natureIds.includes(id))).toBe(true);
     expect(singles.length + clustered).toBe(nature.length);
     expect(screen.getByText('Найдите место на карте.')).toBeInTheDocument();
+  });
+
+  /* В повторе члены грозди вне пула не закроются никогда — исход всё равно виден. */
+  it('гроздь в повторе получает исход, когда закрыт весь пул в ней', () => {
+    const all = landmarksUpTo('all');
+    const forbiddenCity = all.find((one) => one.id === 'forbidden-city')!;
+    const { container } = renderLandmarkRound(
+      [forbiddenCity, all.find((one) => one.id === 'potala')!],
+      all.map((one) => one.id),
+    );
+    const cluster = () =>
+      [...container.querySelectorAll('.map-cluster')].find((one) =>
+        one.querySelector('[aria-label*="Запретный город"]'),
+      )!;
+
+    if (screen.getByTestId('fill-target').textContent !== 'Запретный город') {
+      fireEvent.click(screen.getByRole('button', { name: /^Дворец Потала, / }));
+    }
+    fireEvent.click(cluster().querySelector('[role="button"]')!);
+
+    expect(cluster()).toHaveAttribute('data-outcome', 'correct');
+  });
+
+  /* Закрытый член грозди ответа не примет — промах пишется открытым. */
+  it('промах по грозди с закрытым первым членом тратит попытку', () => {
+    const all = landmarksUpTo('all');
+    const { container } = renderLandmarkRound(
+      all.filter((one) => ['forbidden-city', 'temple-of-heaven', 'potala'].includes(one.id)),
+      all.map((one) => one.id),
+      // При этом сиде Потала спрашивают последней: пекинские звёзды к тому
+      // времени закрыты.
+      2,
+    );
+    const cluster = () =>
+      [...container.querySelectorAll('.map-cluster')].find((one) =>
+        one.querySelector('[aria-label*="Запретный город"]'),
+      )!.querySelector('[role="button"]')!;
+
+    // Сначала закрыть звёзды пекинской грозди, пока не спросят Потала.
+    while (screen.getByTestId('fill-target').textContent !== 'Дворец Потала') {
+      fireEvent.click(cluster());
+    }
+    // Сценарий тот, что нужен: обе пекинские звезды уже закрыты.
+    expect(screen.getByTestId('fill-progress')).toHaveTextContent('Закрашено 2 из 3');
+    fireEvent.click(cluster());
+
+    expect(screen.getByText('Не это место. Осталось попыток: 2.')).toBeInTheDocument();
   });
 
   it('нажатие по грозди со спрошенным засчитывается', () => {

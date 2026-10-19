@@ -501,8 +501,15 @@ export function HomePage({
                 ? null
                 : { value: difficulty, ...startingCard.levels }
             }
+            /* У игры без уровней окно выбора не показывает: уровень остаётся
+               запомненным, а не сбрасывается на лёгкий. */
             onStart={(language, set, level) =>
-              start(startingCard, language, set, level)
+              start(
+                startingCard,
+                language,
+                set,
+                startingCard.levels === undefined ? difficulty : level,
+              )
             }
             onClose={() => setStartingCard(null)}
           />

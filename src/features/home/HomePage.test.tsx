@@ -11,7 +11,10 @@ import { HomePage } from './HomePage';
  * История нужна только тем проверкам, где от неё зависит подпись главного
  * шага: карточки игр от неё не зависят — все открыты сразу.
  */
-function renderHome(attempts: readonly Attempt[] = []) {
+function renderHome(
+  attempts: readonly Attempt[] = [],
+  difficulty: 'easy' | 'hard' = 'easy',
+) {
   const handlers = {
     onStartRound: vi.fn(),
     onStartCountryRound: vi.fn(),
@@ -31,7 +34,7 @@ function renderHome(attempts: readonly Attempt[] = []) {
     <HomePage
       regions={regions}
       attempts={attempts}
-      difficulty="easy"
+      difficulty={difficulty}
       {...handlers}
     />,
   );
@@ -207,6 +210,19 @@ it('у игры без уровней группы «Сложность» в о�
   openCard(/Назвать регион/);
 
   expect(screen.queryByRole('group', { name: 'Сложность' })).toBeNull();
+});
+
+/*
+ * Игра без уровней не трогает запомненный уровень: иначе после «Назвать
+ * регион» атлас и строка повтора молча уходили бы на лёгкий.
+ */
+it('игра без уровней передаёт запомненный уровень, а не лёгкий', () => {
+  const { onStartRound } = renderHome([], 'hard');
+
+  openCard(/Назвать регион/);
+  fireEvent.click(screen.getByRole('button', { name: 'Начать' }));
+
+  expect(onStartRound).toHaveBeenCalledWith('name-target', 'ru', null, 'hard');
 });
 
 it('ведёт в атлас', () => {

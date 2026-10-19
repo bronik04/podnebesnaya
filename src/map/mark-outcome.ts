@@ -47,12 +47,15 @@ const SEVERITY: readonly MarkOutcome[] = ['incorrect', 'second-try', 'correct'];
  * верным ответом, — иначе ошибочный член делает её ошибочной.
  *
  * За раунд (лёгкий уровень) исходы копятся, и гроздь получает исход, только
- * когда закрыты все её члены: пока хоть один открыт, гроздь ещё цель. Исход —
- * худший из членов.
+ * когда в ней не осталось открытых членов: пока хоть один открыт, гроздь ещё
+ * цель. Исход — худший из закрытых. Открытые — `pending`, если раунд его
+ * знает: в повторе члены грозди вне пула не закроются никогда, и без этого
+ * гроздь так и не показала бы исход. Не задан — открыт всякий член без исхода.
  */
 export function clusterOutcome(
   memberOutcomes: readonly (MarkOutcome | undefined)[],
   accumulates: boolean,
+  pending?: readonly boolean[],
 ): MarkOutcome | undefined {
   if (!accumulates) {
     return memberOutcomes.includes('correct')
@@ -62,7 +65,9 @@ export function clusterOutcome(
         : undefined;
   }
 
-  if (memberOutcomes.length === 0 || memberOutcomes.includes(undefined)) {
+  const anyPending =
+    pending === undefined ? memberOutcomes.includes(undefined) : pending.includes(true);
+  if (anyPending) {
     return undefined;
   }
 

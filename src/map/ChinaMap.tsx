@@ -154,6 +154,12 @@ type ChinaMapProps = {
   /** Какие звёзды рисовать. Не задано — все; лёгкий уровень — набор раунда. */
   readonly landmarkIds?: readonly string[];
   /**
+   * Ещё открытые цели раунда лёгкого уровня: гроздь городов или звёзд получает
+   * исход, когда открытых в ней не осталось. В повторе члены грозди вне пула
+   * не открыты — их просто не спрашивают.
+   */
+  readonly pendingTargetIds?: readonly string[];
+  /**
    * Слой сопредельных государств. Включается только в играх по странам: на всех
    * прочих поверхностях за границей Китая пусто, и так и должно остаться.
    */
@@ -190,6 +196,8 @@ type ChinaMapProps = {
   readonly showsPhysicalLabels?: boolean;
   /** Исход ответа по объектам физической карты: помечается штриховкой и штрихом. */
   readonly featureOutcomes?: Readonly<Record<string, FeatureOutcome>>;
+  /** Исходы объектов копятся за раунд: участок реки не наследует исход реки. */
+  readonly featureOutcomesAccumulate?: boolean;
   /**
    * Врезка на листе карты: легенда, шкала — то, что объясняет саму карту.
    *
@@ -310,12 +318,14 @@ export function ChinaMap({
   landmarkOutcomes,
   landmarkOutcomesAccumulate = false,
   landmarkIds,
+  pendingTargetIds,
   showsCallouts = true,
   showsCalloutLabels,
   selectedFeatureId = null,
   onSelectFeature,
   showsPhysicalLabels = true,
   featureOutcomes = NO_FEATURE_OUTCOMES,
+  featureOutcomesAccumulate = false,
   mapInset,
   onOpenRegion,
 }: ChinaMapProps) {
@@ -1026,6 +1036,7 @@ export function ChinaMap({
               <CityLayer
                 points={cityPoints}
                 outcomes={cityOutcomes}
+                pendingIds={pendingTargetIds}
                 selectedCityId={selectedCityId}
                 onSelect={onSelectCity}
                 showsLabels={showsCityLabels}
@@ -1058,6 +1069,7 @@ export function ChinaMap({
                 showsLabels={showsLandmarkLabels}
                 outcomes={landmarkOutcomes}
                 outcomesAccumulate={landmarkOutcomesAccumulate}
+                pendingIds={pendingTargetIds}
                 points={landmarkPoints}
                 zoom={view.zoom}
               />,
@@ -1078,6 +1090,7 @@ export function ChinaMap({
                 onSelect={onSelectFeature}
                 showsLabels={showsPhysicalLabels}
                 featureOutcomes={featureOutcomes}
+                outcomesAccumulate={featureOutcomesAccumulate}
                 zoom={view.zoom}
               />,
               citySvg,

@@ -42,6 +42,8 @@ export type CityLayerProps = {
    * исхода не видно — ученик в этот миг смотрит на карту вблизи.
    */
   readonly outcomes?: Readonly<Record<string, MarkOutcome>>;
+  /** Ещё открытые цели раунда — для исхода грозди (`clusterOutcome`). */
+  readonly pendingIds?: readonly string[];
 };
 
 const NO_OUTCOMES: Readonly<Record<string, MarkOutcome>> = {};
@@ -104,6 +106,7 @@ export function CityLayer({
   zoom = 1,
   onZoomToCluster,
   outcomes = NO_OUTCOMES,
+  pendingIds,
 }: CityLayerProps) {
   /*
    * Гроздь нужна там, где есть что разделять: цель нажатия или подсвеченный
@@ -225,6 +228,7 @@ export function CityLayer({
           role={onSelect ? 'button' : undefined}
           aria-label={onSelect ? label : undefined}
           aria-hidden={onSelect ? undefined : 'true'}
+          aria-disabled={onSelect && outcome !== undefined ? true : undefined}
           tabIndex={onSelect ? 0 : -1}
           onPointerEnter={() => setActiveCityId(city.id)}
           onPointerLeave={() =>
@@ -282,6 +286,9 @@ export function CityLayer({
             outcome={clusterOutcome(
               cluster.members.map((member) => outcomes[member.id]),
               true,
+              pendingIds === undefined
+                ? undefined
+                : cluster.members.map((member) => pendingIds.includes(member.id)),
             )}
             label={
               onZoomToCluster

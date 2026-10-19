@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { partOfFeature } from '../../content/physical-features';
+import { partOfFeature, physicalFeatures } from '../../content/physical-features';
 import { regions as allRegions } from '../../content/regions';
 import {
   answerFillRound,
@@ -244,12 +244,39 @@ export function FillMapRound({
     for (const [id, outcome] of Object.entries(round.outcomes)) {
       marks[id] = markOutcomeOf(outcome);
     }
+    /*
+     * Участок реки, о котором раунд не спрашивает, рисуется как его река:
+     * иначе на найденной Янцзы «Три ущелья» оставались бы бледной выемкой.
+     * Спрашиваемый участок своё получит сам — слой больше не наследует.
+     */
+    if (kind === 'physical') {
+      for (const part of physicalFeatures) {
+        const whole = partOfFeature(part.id);
+        if (
+          whole !== undefined &&
+          marks[whole] !== undefined &&
+          marks[part.id] === undefined &&
+          !targets.some((target) => target.id === part.id)
+        ) {
+          marks[part.id] = marks[whole];
+        }
+      }
+    }
     if (missedRegionId !== null && revealedRegionId === null) {
       marks[missedRegionId] = 'incorrect';
     }
 
     return marks;
-  }, [missedRegionId, revealedRegionId, round.outcomes]);
+  }, [kind, missedRegionId, revealedRegionId, round.outcomes, targets]);
+
+  /* Ещё не закрытые цели — по ним гроздь знает, остались ли в ней открытые. */
+  const pendingIds = useMemo(
+    () =>
+      targets
+        .map((target) => target.id)
+        .filter((id) => round.outcomes[id] === undefined),
+    [round.outcomes, targets],
+  );
 
   function handleSelect(pickedId: string) {
     handlePick([pickedId]);
@@ -429,6 +456,7 @@ export function FillMapRound({
             onSelectFeature={handleSelect}
             showsPhysicalLabels={false}
             featureOutcomes={markOutcomes}
+            featureOutcomesAccumulate
           />
         </div>
       ) : kind === 'landmark' ? (
@@ -448,6 +476,7 @@ export function FillMapRound({
           showsLandmarkLabels={false}
           landmarkOutcomes={markOutcomes}
           landmarkOutcomesAccumulate
+          pendingTargetIds={pendingIds}
           onSelectLandmark={handlePick}
           showsCallouts={false}
         />
@@ -469,6 +498,7 @@ export function FillMapRound({
           selectedCityId={revealedRegionId}
           onSelectCity={handleSelect}
           cityOutcomes={markOutcomes}
+          pendingTargetIds={pendingIds}
           showsCallouts={false}
         />
       )}

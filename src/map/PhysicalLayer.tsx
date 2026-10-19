@@ -186,6 +186,12 @@ export type PhysicalLayerProps = {
    * помечать нечего.
    */
   readonly featureOutcomes?: Readonly<Record<string, FeatureOutcome>>;
+  /**
+   * Исходы копятся за раунд (лёгкий уровень): участок реки не берёт исход
+   * целой реки — он сам может быть ещё не спрошенной целью. Что ему
+   * унаследовать, решает раунд.
+   */
+  readonly outcomesAccumulate?: boolean;
 };
 
 export function PhysicalLayer({
@@ -194,6 +200,7 @@ export function PhysicalLayer({
   onSelect,
   showsLabels = true,
   featureOutcomes = NO_OUTCOMES,
+  outcomesAccumulate = false,
   zoom = 1,
 }: PhysicalLayerProps) {
   /*
@@ -310,6 +317,11 @@ export function PhysicalLayer({
               }
               aria-hidden={isTarget ? undefined : 'true'}
               tabIndex={answers ? 0 : -1}
+              aria-disabled={
+                answers && featureOutcomes[shape.featureId!] !== undefined
+                  ? true
+                  : undefined
+              }
               onFocus={answers ? () => setHoveredNodeId(shape.featureId!) : undefined}
               onBlur={answers ? () => setHoveredNodeId(null) : undefined}
               onKeyDown={
@@ -383,7 +395,9 @@ export function PhysicalLayer({
           const hoveredLine = line.featureId === hovered || whole === hovered;
           const outcome =
             featureOutcomes[line.featureId] ??
-            (whole === undefined ? undefined : featureOutcomes[whole]);
+            (whole === undefined || outcomesAccumulate
+              ? undefined
+              : featureOutcomes[whole]);
 
           return (
             <g key={line.featureId} className="river">
@@ -397,6 +411,7 @@ export function PhysicalLayer({
                 role={onSelect ? 'button' : undefined}
                 aria-label={withOutcome(label, outcome)}
                 tabIndex={onSelect ? 0 : -1}
+                aria-disabled={onSelect && outcome !== undefined ? true : undefined}
                 onFocus={onSelect ? () => setHoveredNodeId(line.featureId) : undefined}
                 onBlur={onSelect ? () => setHoveredNodeId(null) : undefined}
                 onKeyDown={
@@ -471,6 +486,11 @@ export function PhysicalLayer({
                 role={answers ? 'button' : undefined}
                 aria-label={label}
                 tabIndex={answers ? 0 : -1}
+                aria-disabled={
+                  answers && featureOutcomes[mark.featureId] !== undefined
+                    ? true
+                    : undefined
+                }
                 onFocus={answers ? () => setHoveredNodeId(mark.featureId) : undefined}
                 onBlur={answers ? () => setHoveredNodeId(null) : undefined}
                 onKeyDown={
@@ -526,6 +546,11 @@ export function PhysicalLayer({
               aria-label={answers ? label : undefined}
               aria-hidden={answers ? undefined : 'true'}
               tabIndex={answers ? 0 : -1}
+              aria-disabled={
+                answers && featureOutcomes[shape.featureId] !== undefined
+                  ? true
+                  : undefined
+              }
               onFocus={answers ? () => setHoveredNodeId(shape.featureId) : undefined}
               onBlur={answers ? () => setHoveredNodeId(null) : undefined}
               onKeyDown={
@@ -580,6 +605,11 @@ export function PhysicalLayer({
                 role={answers ? 'button' : undefined}
                 aria-label={label}
                 tabIndex={answers ? 0 : -1}
+                aria-disabled={
+                  answers && featureOutcomes[mark.featureId] !== undefined
+                    ? true
+                    : undefined
+                }
                 onFocus={answers ? () => setHoveredNodeId(mark.featureId) : undefined}
                 onBlur={answers ? () => setHoveredNodeId(null) : undefined}
                 onKeyDown={

@@ -26,3 +26,10 @@ it('гроздь за раунд: исход есть, только когда �
   expect(clusterOutcome(['second-try', 'incorrect', 'correct'], true)).toBe('incorrect');
   expect(clusterOutcome(['correct', 'correct'], true)).toBe('correct');
 });
+
+it('гроздь за раунд с известными открытыми: исход, когда открытых не осталось', () => {
+  // Член вне пула повтора не закроется никогда — он не открыт, а просто не спрошен.
+  expect(clusterOutcome(['correct', undefined], true, [false, false])).toBe('correct');
+  expect(clusterOutcome(['correct', undefined], true, [false, true])).toBeUndefined();
+  expect(clusterOutcome([undefined, undefined], true, [false, false])).toBeUndefined();
+});

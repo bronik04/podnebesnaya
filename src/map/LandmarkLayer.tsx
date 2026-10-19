@@ -28,6 +28,8 @@ export type LandmarkLayerProps = {
    * получает исход, только когда закрыты все её члены (`clusterOutcome`).
    */
   readonly outcomesAccumulate?: boolean;
+  /** Ещё открытые цели раунда — для исхода грозди (`clusterOutcome`). */
+  readonly pendingIds?: readonly string[];
 };
 
 export type LandmarkOutcome = MarkOutcome;
@@ -83,6 +85,7 @@ export function LandmarkLayer({
   zoom = 1,
   outcomes = NO_OUTCOMES,
   outcomesAccumulate = false,
+  pendingIds,
 }: LandmarkLayerProps) {
   /*
    * Гроздь нужна там, где есть что объединять: цель нажатия или подсвеченный
@@ -162,6 +165,7 @@ export function LandmarkLayer({
           role={onSelect ? 'button' : undefined}
           aria-label={onSelect ? label : undefined}
           aria-hidden={onSelect ? undefined : 'true'}
+          aria-disabled={onSelect && outcome !== undefined ? true : undefined}
           tabIndex={onSelect ? 0 : -1}
           onPointerEnter={() => setActiveLandmarkId(landmark.id)}
           onPointerLeave={() =>
@@ -213,6 +217,9 @@ export function LandmarkLayer({
         const outcome = clusterOutcome(
           cluster.members.map((member) => outcomes[member.id]),
           outcomesAccumulate,
+          pendingIds === undefined
+            ? undefined
+            : cluster.members.map((member) => pendingIds.includes(member.id)),
         );
         const names = cluster.members
           .map(
