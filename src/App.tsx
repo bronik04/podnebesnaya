@@ -69,7 +69,7 @@ import {
   RoundResultsPage,
 } from './screens';
 import { hasUnaskedTargets } from './features/results/has-unasked';
-import type { Landmark } from './content/landmarks';
+import { landmarks, type Landmark } from './content/landmarks';
 import { landmarksUpTo, type LandmarkSet } from './content/landmark-sets';
 import { countries, type Country } from './content/countries';
 import type { CountryExerciseType } from './features/exercise/exercise-modes';
@@ -214,6 +214,15 @@ const FILL_REFERENCE: Readonly<Record<FillKind, readonly NamedTarget[]>> = {
   country: countries,
   city: cities,
   physical: physicalFeatures,
+  landmark: landmarks,
+};
+
+const FILL_COUNT_WORD: Readonly<Record<FillKind, (count: number) => string>> = {
+  region: regionsWord,
+  country: countriesWord,
+  city: citiesWord,
+  physical: featuresWord,
+  landmark: landmarksWord,
 };
 
 export default function App() {
@@ -235,6 +244,8 @@ export default function App() {
   const [citySet, setCitySet] = useState<CitySet>('capital');
   /* Набор физической карты — для «Новый раунд» лёгкого уровня. */
   const [physicalSet, setPhysicalSet] = useState<PhysicalSet>('all');
+  /* Набор достопримечательностей — карта лёгкого уровня рисует только его. */
+  const [landmarkSet, setLandmarkSet] = useState<LandmarkSet>('all');
   const [landmarkPool, setLandmarkPool] = useState<readonly Landmark[]>([]);
   /*
    * Двенадцать целей всегда; сужается пул только «Повторить ошибки». Набор
@@ -665,6 +676,41 @@ export default function App() {
     startPhysicalRound('find-on-map', nextLanguage, set);
   }
 
+  /** «Найти место» на уровне — по тому же правилу, что `startFindCities`. */
+  function startFindLandmarks(
+    nextLanguage: QuestionLanguage,
+    set: LandmarkSet,
+    level: Difficulty = difficulty,
+  ) {
+    setLandmarkSet(set);
+    if (level === 'easy') {
+      startFillRound(
+        'landmark',
+        nextLanguage,
+        landmarksUpTo(set).map((landmark) => landmark.id),
+      );
+      return;
+    }
+    startLandmarkRound('find-on-map', nextLanguage, set);
+  }
+
+  /** «Новый раунд» на итогах лёгкого уровня: та же игра, тот же набор. */
+  function startFindAgain(kind: FillKind, nextLanguage: QuestionLanguage) {
+    switch (kind) {
+      case 'city':
+        startFindCities(nextLanguage, citySet, 'easy');
+        return;
+      case 'physical':
+        startFindPhysical(nextLanguage, physicalSet, 'easy');
+        return;
+      case 'landmark':
+        startFindLandmarks(nextLanguage, landmarkSet, 'easy');
+        return;
+      default:
+        startFillRound(kind, nextLanguage, null);
+    }
+  }
+
   /** «Найти страну» на уровне — по тому же правилу, что `startFindRegions`. */
   function startFindCountries(
     nextLanguage: QuestionLanguage,
@@ -764,7 +810,9 @@ export default function App() {
           mapIds={
             fillKind === 'city'
               ? citiesUpTo(citySet).map((city) => city.id)
-              : undefined
+              : fillKind === 'landmark'
+                ? landmarksUpTo(landmarkSet).map((landmark) => landmark.id)
+                : undefined
           }
           language={language}
           roundId={roundId}
@@ -782,15 +830,7 @@ export default function App() {
         <FillMapResultsPage
           round={fillRound}
           targets={FILL_REFERENCE[fillKind]}
-          countWord={
-            fillKind === 'country'
-              ? countriesWord
-              : fillKind === 'city'
-                ? citiesWord
-                : fillKind === 'physical'
-                  ? featuresWord
-                  : regionsWord
-          }
+          countWord={FILL_COUNT_WORD[fillKind]}
           /* Карта исходов есть только у регионов: исход по стране, городу или
              объекту карта итогов пока не показывает. Ссылки «В справочник» —
              у всех, у кого есть карточка (у стран её нет). */
@@ -806,13 +846,7 @@ export default function App() {
               summariseFillRound(fillRound).idsToReview,
             )
           }
-          onNewRound={() =>
-            fillKind === 'city'
-              ? startFindCities(language, citySet, 'easy')
-              : fillKind === 'physical'
-                ? startFindPhysical(language, physicalSet, 'easy')
-                : startFillRound(fillKind, language, null)
-          }
+          onNewRound={() => startFindAgain(fillKind, language)}
           onExit={goToModes}
         />
       </AppFrame>
@@ -1220,6 +1254,10 @@ export default function App() {
           }}
           onStartLandmarkRound={(exerciseType, nextLanguage, set, level) => {
             setDifficulty(level);
+            if (exerciseType === 'find-on-map') {
+              startFindLandmarks(nextLanguage, set, level);
+              return;
+            }
             startLandmarkRound(exerciseType, nextLanguage, set);
           }}
           onOpenAtlas={() => openAtlas(null)}

@@ -35,7 +35,7 @@ export const MISS_FLASH_MS = 600;
  * Вид целей лёгкого уровня. Ход у всех один — заполнение карты; различаются
  * слой карты и слова. Виды добавляются по шагам плана уровней сложности.
  */
-export type FillKind = 'region' | 'country' | 'city' | 'physical';
+export type FillKind = 'region' | 'country' | 'city' | 'physical' | 'landmark';
 
 type KindWords = {
   readonly title: string;
@@ -69,20 +69,37 @@ const WORDS: Readonly<Record<FillKind, KindWords>> = {
     miss: 'Не этот объект.',
     revealed: 'Попытки кончились. Объект показан на карте.',
   },
+  landmark: {
+    title: 'find-landmark',
+    ask: 'Найдите место на карте.',
+    miss: 'Не это место.',
+    revealed: 'Попытки кончились. Место показано на карте.',
+  },
 };
 
 /**
- * Какой ответ записать по нажатию. Обычно — саму цель под пальцем; у
- * физической карты участок реки засчитывается целой реке, когда спрошена
- * она: ущелья лежат на Янцзы, и ткнувший в самое узнаваемое её место не
- * должен получать ошибку (то же правило, что в `PhysicalRound`).
+ * Какой ответ записать по нажатию. Обычно — саму цель под пальцем. Гроздь
+ * звёзд — одна цель: в ней спрошенный — засчитывается он, иначе промах
+ * первым ещё открытым членом (закрытый ответа не принял бы, и промах по
+ * грозди пропал бы). Участок реки засчитывается целой реке, когда спрошена
+ * она: ущелья лежат на Янцзы (те же правила, что в `LandmarkRound` и
+ * `PhysicalRound`).
  */
-function resolveAnswer(kind: FillKind, pickedId: string, targetId: string): string {
-  if (kind === 'physical' && partOfFeature(pickedId) === targetId) {
+function resolveAnswer(
+  kind: FillKind,
+  pickedIds: readonly string[],
+  targetId: string,
+  isClosed: (id: string) => boolean,
+): string {
+  if (pickedIds.includes(targetId)) {
     return targetId;
   }
 
-  return pickedId;
+  if (kind === 'physical' && partOfFeature(pickedIds[0]) === targetId) {
+    return targetId;
+  }
+
+  return pickedIds.find((id) => !isClosed(id)) ?? pickedIds[0];
 }
 
 export type FillMapRoundProps = {
@@ -94,8 +111,8 @@ export type FillMapRoundProps = {
    */
   readonly targets: readonly NamedTarget[];
   /**
-   * Какие цели рисовать на карте, если не весь справочник. У городов — набор
-   * раунда: на лёгком уровне карта показывает только его, и в повторе одной
+   * Какие цели рисовать на карте, если не весь справочник. У городов и мест —
+   * набор раунда: на лёгком уровне карта показывает только его, и в повторе одной
    * ошибки тоже весь набор, а не одну точку — иначе она и есть ответ.
    */
   readonly mapIds?: readonly string[];
@@ -235,9 +252,18 @@ export function FillMapRound({
   }, [missedRegionId, revealedRegionId, round.outcomes]);
 
   function handleSelect(pickedId: string) {
+    handlePick([pickedId]);
+  }
+
+  function handlePick(pickedIds: readonly string[]) {
     const regionId = finished
-      ? pickedId
-      : resolveAnswer(kind, pickedId, currentTarget(round).targetId);
+      ? pickedIds[0]
+      : resolveAnswer(
+          kind,
+          pickedIds,
+          currentTarget(round).targetId,
+          (id) => round.outcomes[id] !== undefined,
+        );
     /*
      * Закрытая цель ответа не принимает: повторное нажатие не должно стоить
      * попытки. У регионов это держит ещё и правило карты, у прочих — только
@@ -405,6 +431,26 @@ export function FillMapRound({
             featureOutcomes={markOutcomes}
           />
         </div>
+      ) : kind === 'landmark' ? (
+        /* Карта та же, что в сложной «Найти место» (`LandmarkRound`), но с набором. */
+        <ChinaMap
+          regions={allRegions}
+          selectedRegionId={null}
+          onSelect={() => {}}
+          onClear={() => {}}
+          usage="answer"
+          interactive={false}
+          zoom={zoom}
+          onZoomChange={setZoom}
+          showsLandmarks
+          landmarkIds={mapIds}
+          selectedLandmarkId={revealedRegionId}
+          showsLandmarkLabels={false}
+          landmarkOutcomes={markOutcomes}
+          landmarkOutcomesAccumulate
+          onSelectLandmark={handlePick}
+          showsCallouts={false}
+        />
       ) : (
         /* Карта та же, что в сложной «Найти город» (`CityRound`), но с набором. */
         <ChinaMap

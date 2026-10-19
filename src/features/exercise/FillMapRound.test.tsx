@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { citiesUpTo } from '../../content/cities';
 import { countries, type Country } from '../../content/countries';
+import { landmarksUpTo } from '../../content/landmark-sets';
 import {
   physicalFeatures,
   physicalFeaturesUpTo,
@@ -412,5 +413,65 @@ describe('физическая карта', () => {
 
     expect(container.querySelectorAll('.relief-shape')).toHaveLength(38);
     expect(container.querySelectorAll('.river-line')).toHaveLength(8);
+  });
+});
+
+describe('достопримечательности', () => {
+  function renderLandmarkRound(
+    targets: ReturnType<typeof landmarksUpTo>,
+    mapIds: readonly string[],
+  ) {
+    const onFinish = vi.fn();
+    const view = render(
+      <FillMapRound
+        kind="landmark"
+        targets={targets}
+        mapIds={mapIds}
+        language="ru"
+        roundId="r1"
+        seed={1}
+        onFinish={onFinish}
+        onExit={() => {}}
+      />,
+    );
+
+    return { ...view, onFinish };
+  }
+
+  it('на лёгком уровне на карте только звёзды набора', () => {
+    const nature = landmarksUpTo('nature');
+    const natureIds = nature.map((one) => one.id);
+    const { container } = renderLandmarkRound(nature, natureIds);
+
+    const singles = [...container.querySelectorAll('.landmark[data-landmark-id]')].map(
+      (one) => one.getAttribute('data-landmark-id')!,
+    );
+    const clustered = [...container.querySelectorAll('.cluster-count')].reduce(
+      (sum, count) => sum + Number(count.textContent),
+      0,
+    );
+    expect(singles.every((id) => natureIds.includes(id))).toBe(true);
+    expect(singles.length + clustered).toBe(nature.length);
+    expect(screen.getByText('Найдите место на карте.')).toBeInTheDocument();
+  });
+
+  it('нажатие по грозди со спрошенным засчитывается', () => {
+    const all = landmarksUpTo('all');
+    const forbiddenCity = all.find((one) => one.id === 'forbidden-city')!;
+    const { onFinish } = renderLandmarkRound(
+      [forbiddenCity],
+      all.map((one) => one.id),
+    );
+
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: /^Достопримечательности рядом: .*Запретный город/,
+      }),
+    );
+
+    expect(onFinish).toHaveBeenCalledOnce();
+    expect(onFinish.mock.calls[0][0].outcomes).toEqual({
+      'forbidden-city': 'first-try',
+    });
   });
 });
