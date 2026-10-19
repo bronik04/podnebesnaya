@@ -91,6 +91,12 @@ export const FillMapResultsPage = lazy(() =>
     .fillResults()
     .then((module) => ({ default: module.FillMapResultsPage })),
 );
+/* Та же часть, что итоги заполнения: карта исходов приходит с ними одним куском. */
+export const FillOutcomesMap = lazy(() =>
+  loaders
+    .fillResults()
+    .then((module) => ({ default: module.FillOutcomesMap })),
+);
 
 /**
  * Дотянуть остальные куски, когда браузеру нечем заняться.

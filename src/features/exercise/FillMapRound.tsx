@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { regions as allRegions } from '../../content/regions';
 import type { Region } from '../../content/types';
 import {
   answerFillRound,
@@ -26,6 +27,11 @@ export const REVEAL_MS = 1500;
 export const MISS_FLASH_MS = 600;
 
 export type FillMapRoundProps = {
+  /**
+   * Пул раунда: все 34 региона или ошибки, взятые на повтор. Карта рисует
+   * справочник целиком — пул отвечает за то, что спрашивают, а не за то,
+   * что видно.
+   */
   readonly regions: readonly Region[];
   readonly language: QuestionLanguage;
   readonly roundId: string;
@@ -236,7 +242,7 @@ export function FillMapRound({
       onExit={onExit}
     >
       <ChinaMap
-        regions={regions}
+        regions={allRegions}
         selectedRegionId={null}
         onSelect={handleSelect}
         onClear={() => {}}

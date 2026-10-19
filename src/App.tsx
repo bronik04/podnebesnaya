@@ -45,7 +45,7 @@ import { summariseFillRound, type FillRound } from './domain/fill-round';
 import { createProgressStore } from './domain/progress-storage';
 import type { QuestionLanguage } from './domain/question-language';
 import { outcomesByTarget } from './domain/round-outcomes';
-import type { Attempt, ExerciseType } from './domain/round';
+import type { Attempt, ExerciseType, TargetKind } from './domain/round';
 import { HomePage } from './features/home/HomePage';
 import {
   AtlasPage,
@@ -57,6 +57,7 @@ import {
   CollectionsPage,
   ExerciseRound,
   FillMapResultsPage,
+  FillOutcomesMap,
   FillMapRound,
   CountryRound,
   OrderRound,
@@ -249,6 +250,8 @@ export default function App() {
   const [seed, setSeed] = useState(() => Math.floor(Math.random() * 2 ** 31));
   const [lastAttempts, setLastAttempts] = useState<readonly Attempt[]>([]);
   const [fillRound, setFillRound] = useState<FillRound | null>(null);
+  /* Пул заполнения: все регионы или ошибки, взятые на повтор. */
+  const [fillPool, setFillPool] = useState<readonly Region[]>(regions);
   const [countryPool, setCountryPool] = useState<readonly Country[]>(countries);
   const [countryExerciseType, setCountryExerciseType] =
     useState<CountryExerciseType>('find-on-map');
@@ -559,12 +562,40 @@ export default function App() {
     startCountryPool(exerciseType, nextLanguage, countries);
   }
 
-  function startFillRound(nextLanguage: QuestionLanguage) {
+  function startFillRound(
+    nextLanguage: QuestionLanguage,
+    regionIds: readonly string[] | null,
+  ) {
+    setFillPool(
+      regionIds === null
+        ? regions
+        : regions.filter((region) => regionIds.includes(region.id)),
+    );
     setLanguage(nextLanguage);
     setRoundId(newRoundId());
     setSeed(Math.floor(Math.random() * 2 ** 31));
     setFillRound(null);
     setScreen('fill');
+  }
+
+  /**
+   * «Найти регион» на уровне: лёгкий — заполнение карты, сложный — раунд по
+   * одному вопросу на чистой карте. Им пользуются все входы в игру: карточка,
+   * повтор и новый раунд на итогах, строка повтора на главной, «Тренировать»
+   * в атласе и на странице коллекции. Уровень по умолчанию — запомненный;
+   * окно перед стартом передаёт выбранный явно, потому что `setDifficulty`
+   * ещё не применился.
+   */
+  function startFindRegions(
+    nextLanguage: QuestionLanguage,
+    regionIds: readonly string[] | null,
+    level: Difficulty = difficulty,
+  ) {
+    if (level === 'easy') {
+      startFillRound(nextLanguage, regionIds);
+      return;
+    }
+    startRound('find-on-map', nextLanguage, regionIds);
   }
 
   /**
@@ -610,6 +641,18 @@ export default function App() {
     setScreen('results');
   }
 
+  /* Ссылка «В справочник» у ошибки: куда она ведёт, решает `referenceTargetOf`. */
+  function referenceFor(kind: TargetKind, targetId: string): (() => void) | null {
+    const reference = referenceTargetOf(kind, targetId);
+    if (reference === null) {
+      return null;
+    }
+
+    return reference.kind === 'feature'
+      ? () => openAtlas(null, reference.featureId)
+      : () => openAtlas(reference.regionId, null);
+  }
+
   if (screen === 'country-exercise') {
     return (
       <AppFrame fillsFrame guardsLeave current={null} onNavigate={navigate}>
@@ -630,7 +673,7 @@ export default function App() {
     return (
       <AppFrame fillsFrame guardsLeave current={null} onNavigate={navigate}>
         <FillMapRound
-          regions={regions}
+          regions={fillPool}
           language={language}
           roundId={roundId}
           seed={seed}
@@ -646,16 +689,14 @@ export default function App() {
       <AppFrame fillsFrame={false} current={null} onNavigate={navigate}>
         <FillMapResultsPage
           round={fillRound}
-          regions={regions}
+          targets={regions}
+          roundMap={<FillOutcomesMap round={fillRound} />}
+          referenceOf={(regionId) => referenceFor('region', regionId)}
           isProgressSaved={store.isAvailable}
           onRepeatMistakes={() =>
-            startRound(
-              'find-on-map',
-              language,
-              summariseFillRound(fillRound).idsToReview,
-            )
+            startFillRound(language, summariseFillRound(fillRound).idsToReview)
           }
-          onNewRound={() => startFillRound(language)}
+          onNewRound={() => startFillRound(language, null)}
           onExit={goToModes}
         />
       </AppFrame>
@@ -800,17 +841,7 @@ export default function App() {
      * разойтись со списком ей теперь нечем.
      */
     const repeatIds = summary.targetsToReview.map((target) => target.id);
-    /* Ссылка «В справочник» у ошибки: куда она ведёт, решает `referenceTargetOf`. */
-    function referenceOf(targetId: string): (() => void) | null {
-      const reference = referenceTargetOf(roundKind, targetId);
-      if (reference === null) {
-        return null;
-      }
-
-      return reference.kind === 'feature'
-        ? () => openAtlas(null, reference.featureId)
-        : () => openAtlas(reference.regionId, null);
-    }
+    const referenceOf = (targetId: string) => referenceFor(roundKind, targetId);
     const repeatCities = cityPool.filter((city) => repeatIds.includes(city.id));
     const repeatFeatures = physicalPool.filter((feature) =>
       repeatIds.includes(feature.id),
@@ -1014,7 +1045,7 @@ export default function App() {
           onClear={() => setSelectedRegionId(null)}
           zoom={zoom}
           onZoomChange={setZoom}
-          onTrain={() => startRound('find-on-map', 'ru', null)}
+          onTrain={() => startFindRegions('ru', null)}
           onOpenCollection={openCollection}
           reliefStyle={reliefStyle}
           onReliefStyleChange={setReliefStyle}
@@ -1029,7 +1060,7 @@ export default function App() {
           onOpenCollections={() => setScreen('collections')}
           onOpenCollection={openCollection}
           onTrainRegions={(regionIds) =>
-            startRound('find-on-map', 'ru', regionIds)
+            startFindRegions('ru', regionIds)
           }
         />
       ) : (
@@ -1039,12 +1070,8 @@ export default function App() {
           difficulty={difficulty}
           onStartRound={(request, nextLanguage, regionIds, level) => {
             setDifficulty(level);
-            /*
-             * Лёгкий «Найти регион» идёт ходом заполнения карты; пул и повтор
-             * тем же уровнем — следующим шагом плана уровней сложности.
-             */
-            if (request === 'find-on-map' && level === 'easy' && regionIds === null) {
-              startFillRound(nextLanguage);
+            if (request === 'find-on-map') {
+              startFindRegions(nextLanguage, regionIds, level);
               return;
             }
             startRound(request, nextLanguage, regionIds);

@@ -189,7 +189,8 @@ it('коллекция запускает раунд ровно по своим 
   fireEvent.click(screen.getByRole('button', { name: 'Спросить эти регионы' }));
   await settle();
 
-  expect(screen.getByText(/Вопрос 1 из 9/)).toBeInTheDocument();
+  // Уровень по умолчанию — лёгкий: заполнение карты по девяти регионам.
+  expect(screen.getByText(/Закрашено 0 из 9/)).toBeInTheDocument();
 });
 
 it('атлас держит выбор региона в состоянии приложения', async () => {
@@ -456,7 +457,7 @@ it('раунд по истории доходит до итога и счита�
   expect(document.body.textContent).not.toContain('12 регионов');
 }, 20_000);
 
-it('итог заполнения ведёт в раунд по ошибочным регионам', async () => {
+it('итог лёгкого «Найти регион» повторяет ошибки тем же уровнем', async () => {
   render(<App />);
   // Лёгкий уровень «Найти регион» — прежняя «Заполнить карту»; он по умолчанию.
   fireEvent.click(screen.getByRole('button', { name: /Найти регион/ }));
@@ -487,8 +488,30 @@ it('итог заполнения ведёт в раунд по ошибочны
   );
   await settle();
 
-  expect(screen.getByText(/Вопрос 1 из 1/)).toBeInTheDocument();
+  // Повтор — снова заполнение, а не раунд «по одному вопросу на чистой карте».
+  expect(screen.getByTestId('fill-target')).toBeInTheDocument();
+  expect(screen.getByText(/Закрашено 0 из 1/)).toBeInTheDocument();
 }, 20_000);
+
+/* Входы мимо окна перед стартом берут уровень, выбранный в последний раз. */
+it('«Тренировать» в атласе запускает запомненный уровень', async () => {
+  render(<App />);
+
+  startFindOnMap();
+  await settle();
+
+  const nav = screen.getByRole('navigation', { name: 'Разделы сайта' });
+  fireEvent.click(within(nav).getByRole('button', { name: 'Атлас' }));
+  fireEvent.click(
+    within(screen.getByRole('dialog')).getByRole('button', { name: 'Перейти' }),
+  );
+  await settle();
+  fireEvent.click(screen.getByRole('button', { name: 'Проверить себя на карте' }));
+  await settle();
+
+  expect(screen.getByText(/Вопрос 1 из 34/)).toBeInTheDocument();
+  expect(screen.queryByTestId('fill-target')).toBeNull();
+});
 
 it('итог игры про страны считает страны, а не регионы', async () => {
   render(<App />);
