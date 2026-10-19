@@ -513,9 +513,60 @@ it('«Тренировать» в атласе запускает запомне
   expect(screen.queryByTestId('fill-target')).toBeNull();
 });
 
+it('итог лёгкого уровня по странам — без карты, со списком ошибок', async () => {
+  render(<App />);
+  fireEvent.click(screen.getByRole('button', { name: /Найти страну/ }));
+  fireEvent.click(screen.getByRole('button', { name: 'Начать' }));
+  await settle();
+
+  const countryName = new RegExp(
+    `^(${countries.map((country) => country.nameRu).join('|')}), `,
+  );
+  await screen.findAllByRole('button', { name: countryName }, { timeout: 5000 });
+  const asked = () =>
+    countries.find(
+      (country) => country.nameRu === screen.getByTestId('fill-target').textContent,
+    )!;
+  const click = (country: (typeof countries)[number]) =>
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: new RegExp(`^${country.nameRu}, ${country.nameZh}`),
+      }),
+    );
+
+  vi.useFakeTimers();
+  try {
+    // Первая страна — со второй попытки: одна ошибка уходит в список.
+    const first = asked();
+    click(countries.find((country) => country.id !== first.id)!);
+    act(() => {
+      vi.advanceTimersByTime(MISS_FLASH_MS);
+    });
+    click(first);
+
+    for (let index = 1; index < countries.length; index += 1) {
+      click(asked());
+    }
+  } finally {
+    vi.useRealTimers();
+  }
+  await settle();
+
+  expect(document.querySelector('.results-map')).toBeNull();
+  expect(
+    screen.getAllByRole('listitem').filter((item) =>
+      item.textContent?.includes('со второго раза'),
+    ),
+  ).toHaveLength(1);
+  expect(
+    screen.getByRole('button', { name: 'Повторить ошибки: 1 страна' }),
+  ).toBeInTheDocument();
+}, 20_000);
+
 it('итог игры про страны считает страны, а не регионы', async () => {
   render(<App />);
   fireEvent.click(screen.getByRole('button', { name: /Найти страну/ }));
+  fireEvent.click(screen.getByRole('radio', { name: /Сложный/ }));
   fireEvent.click(screen.getByRole('button', { name: 'Начать' }));
   await settle();
 

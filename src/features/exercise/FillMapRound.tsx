@@ -1,6 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { regions as allRegions } from '../../content/regions';
-import type { Region } from '../../content/types';
 import {
   answerFillRound,
   createFillRound,
@@ -13,6 +12,9 @@ import {
 import { createSeededRandom } from '../../domain/random';
 import { labelOf, langOf, type QuestionLanguage } from '../../domain/question-language';
 import { ChinaMap, type MapHighlight } from '../../map/ChinaMap';
+import { markOutcomeOf, type MarkOutcome } from '../../map/mark-outcome';
+import { COUNTRY_FRAME_OUTSET } from '../../map/target-size';
+import type { NamedTarget } from '../results/RoundResultsPage';
 import { roundTitle } from './exercise-modes';
 import { RoundStage } from './RoundStage';
 
@@ -26,13 +28,42 @@ export const REVEAL_MS = 1500;
 /** Сколько горит вспышка промаха до того, как погаснуть. */
 export const MISS_FLASH_MS = 600;
 
+/**
+ * Вид целей лёгкого уровня. Ход у всех один — заполнение карты; различаются
+ * слой карты и слова. Виды добавляются по шагам плана уровней сложности.
+ */
+export type FillKind = 'region' | 'country';
+
+type KindWords = {
+  readonly title: string;
+  readonly ask: string;
+  readonly miss: string;
+  readonly revealed: string;
+};
+
+const WORDS: Readonly<Record<FillKind, KindWords>> = {
+  region: {
+    title: 'find-on-map',
+    ask: 'Найдите регион на карте.',
+    miss: 'Не этот регион.',
+    revealed: 'Попытки кончились. Регион показан на карте.',
+  },
+  country: {
+    title: 'find-country',
+    ask: 'Найдите страну на карте.',
+    miss: 'Не эта страна.',
+    revealed: 'Попытки кончились. Страна показана на карте.',
+  },
+};
+
 export type FillMapRoundProps = {
+  readonly kind: FillKind;
   /**
-   * Пул раунда: все 34 региона или ошибки, взятые на повтор. Карта рисует
+   * Пул раунда: весь справочник или ошибки, взятые на повтор. Карта рисует
    * справочник целиком — пул отвечает за то, что спрашивают, а не за то,
    * что видно.
    */
-  readonly regions: readonly Region[];
+  readonly targets: readonly NamedTarget[];
   readonly language: QuestionLanguage;
   readonly roundId: string;
   readonly seed: number;
@@ -41,7 +72,8 @@ export type FillMapRoundProps = {
 };
 
 export function FillMapRound({
-  regions,
+  kind,
+  targets,
   language,
   roundId,
   seed,
@@ -49,7 +81,8 @@ export function FillMapRound({
   onExit,
 }: FillMapRoundProps) {
   const [round, setRound] = useState<FillRound>(() =>
-    createFillRound(regions, {
+    createFillRound(targets, {
+      targetKind: kind,
       roundId,
       language,
       random: createSeededRandom(seed),
@@ -125,10 +158,11 @@ export function FillMapRound({
   const isRevealing = revealedRegionId !== null;
   const finished = isFillRoundFinished(round);
   const question = finished ? null : currentTarget(round);
+  const words = WORDS[kind];
   const targetRegion =
     question === null
       ? null
-      : regions.find((region) => region.id === question.targetId)!;
+      : targets.find((target) => target.id === question.targetId)!;
   const attemptsLeft = MAX_ATTEMPTS_PER_REGION - round.usedAttempts;
   const closed = Object.keys(round.outcomes).length;
 
@@ -140,8 +174,30 @@ export function FillMapRound({
         ? { regionId: missedRegionId, kind: 'miss' }
         : null;
 
+  /*
+   * Исходы стран — исходы раунда в языке знаков, поверх них вспышка промаха.
+   * Ненайденная страна после третьей попытки уже закрыта исходом «ошибка» и
+   * на время показа ещё и выбрана — так её видно сразу.
+   */
+  const countryOutcomes = useMemo(() => {
+    const marks: Record<string, MarkOutcome> = {};
+    for (const [id, outcome] of Object.entries(round.outcomes)) {
+      marks[id] = markOutcomeOf(outcome);
+    }
+    if (missedRegionId !== null && revealedRegionId === null) {
+      marks[missedRegionId] = 'incorrect';
+    }
+
+    return marks;
+  }, [missedRegionId, revealedRegionId, round.outcomes]);
+
   function handleSelect(regionId: string) {
-    if (isRevealing || finished) {
+    /*
+     * Закрытая цель ответа не принимает: повторное нажатие не должно стоить
+     * попытки. У регионов это держит ещё и правило карты, у стран — только
+     * этот обработчик.
+     */
+    if (isRevealing || finished || round.outcomes[regionId] !== undefined) {
       return;
     }
 
@@ -181,15 +237,15 @@ export function FillMapRound({
 
   function statusText(): string {
     if (move === null) {
-      return 'Найдите регион на карте.';
+      return words.ask;
     }
 
     if (move.kind === 'retry') {
-      return `Не этот регион. Осталось попыток: ${move.attemptsLeft}.`;
+      return `${words.miss} Осталось попыток: ${move.attemptsLeft}.`;
     }
 
     if (!move.wasFound) {
-      return 'Попытки кончились. Регион показан на карте.';
+      return words.revealed;
     }
 
     return move.outcome === 'first-try'
@@ -214,7 +270,7 @@ export function FillMapRound({
 
   return (
     <RoundStage
-      title={roundTitle('find-on-map')}
+      title={roundTitle(words.title)}
       prompt={prompt}
       // Показ неугаданного региона идёт на карте (`mapHighlight`); плашка уже
       // задаёт следующий вопрос, и метить её кромкой ответа было бы неверно.
@@ -241,18 +297,37 @@ export function FillMapRound({
       }
       onExit={onExit}
     >
-      <ChinaMap
-        regions={allRegions}
-        selectedRegionId={null}
-        onSelect={handleSelect}
-        onClear={() => {}}
-        variant="fill"
-        usage="answer"
-        outcomes={round.outcomes}
-        highlight={mapHighlight}
-        interactive={!finished}
-        paused={isRevealing}
-      />
+      {kind === 'region' ? (
+        <ChinaMap
+          regions={allRegions}
+          selectedRegionId={null}
+          onSelect={handleSelect}
+          onClear={() => {}}
+          variant="fill"
+          usage="answer"
+          outcomes={round.outcomes}
+          highlight={mapHighlight}
+          interactive={!finished}
+          paused={isRevealing}
+        />
+      ) : (
+        /* Карта та же, что в сложной «Найти страну» (`CountryRound`). */
+        <ChinaMap
+          regions={allRegions}
+          selectedRegionId={null}
+          onSelect={() => {}}
+          onClear={() => {}}
+          usage="answer"
+          variant="reference"
+          interactive={false}
+          showsCountries
+          showsCallouts={false}
+          frameOutset={COUNTRY_FRAME_OUTSET}
+          selectedCountryId={revealedRegionId}
+          onSelectCountry={handleSelect}
+          countryOutcomes={countryOutcomes}
+        />
+      )}
     </RoundStage>
   );
 }

@@ -27,7 +27,10 @@ import {
   featuresWord,
   landmarksWord,
   photosWord,
+  regionsWord,
 } from './content/region-count';
+import type { FillKind } from './features/exercise/FillMapRound';
+import type { NamedTarget } from './features/results/RoundResultsPage';
 import type {
   City,
   CitySet,
@@ -204,6 +207,13 @@ function newRoundId(): string {
   return `round-${Date.now()}-${Math.floor(Math.random() * 1_000_000)}`;
 }
 
+
+/** Справочник каждого вида целей лёгкого уровня: имена на итогах и пул «Новый раунд». */
+const FILL_REFERENCE: Readonly<Record<FillKind, readonly NamedTarget[]>> = {
+  region: regions,
+  country: countries,
+};
+
 export default function App() {
   const store = useMemo(() => createProgressStore(), []);
   const [progress, setProgress] = useState(() => store.read());
@@ -250,8 +260,9 @@ export default function App() {
   const [seed, setSeed] = useState(() => Math.floor(Math.random() * 2 ** 31));
   const [lastAttempts, setLastAttempts] = useState<readonly Attempt[]>([]);
   const [fillRound, setFillRound] = useState<FillRound | null>(null);
-  /* Пул заполнения: все регионы или ошибки, взятые на повтор. */
-  const [fillPool, setFillPool] = useState<readonly Region[]>(regions);
+  /* Лёгкий уровень: вид целей и пул — весь справочник вида или ошибки на повтор. */
+  const [fillKind, setFillKind] = useState<FillKind>('region');
+  const [fillPool, setFillPool] = useState<readonly NamedTarget[]>(regions);
   const [countryPool, setCountryPool] = useState<readonly Country[]>(countries);
   const [countryExerciseType, setCountryExerciseType] =
     useState<CountryExerciseType>('find-on-map');
@@ -562,14 +573,21 @@ export default function App() {
     startCountryPool(exerciseType, nextLanguage, countries);
   }
 
+  /**
+   * Лёгкий уровень любой игры «Найти…»: заполнение карты. `targetIds === null`
+   * — весь справочник вида, иначе только эти цели (повтор, набор коллекции).
+   */
   function startFillRound(
+    kind: FillKind,
     nextLanguage: QuestionLanguage,
-    regionIds: readonly string[] | null,
+    targetIds: readonly string[] | null,
   ) {
+    const reference = FILL_REFERENCE[kind];
+    setFillKind(kind);
     setFillPool(
-      regionIds === null
-        ? regions
-        : regions.filter((region) => regionIds.includes(region.id)),
+      targetIds === null
+        ? reference
+        : reference.filter((target) => targetIds.includes(target.id)),
     );
     setLanguage(nextLanguage);
     setRoundId(newRoundId());
@@ -592,10 +610,27 @@ export default function App() {
     level: Difficulty = difficulty,
   ) {
     if (level === 'easy') {
-      startFillRound(nextLanguage, regionIds);
+      startFillRound('region', nextLanguage, regionIds);
       return;
     }
     startRound('find-on-map', nextLanguage, regionIds);
+  }
+
+  /** «Найти страну» на уровне — по тому же правилу, что `startFindRegions`. */
+  function startFindCountries(
+    nextLanguage: QuestionLanguage,
+    pool: readonly Country[],
+    level: Difficulty = difficulty,
+  ) {
+    if (level === 'easy') {
+      startFillRound(
+        'country',
+        nextLanguage,
+        pool.map((country) => country.id),
+      );
+      return;
+    }
+    startCountryPool('find-on-map', nextLanguage, pool);
   }
 
   /**
@@ -673,7 +708,8 @@ export default function App() {
     return (
       <AppFrame fillsFrame guardsLeave current={null} onNavigate={navigate}>
         <FillMapRound
-          regions={fillPool}
+          kind={fillKind}
+          targets={fillPool}
           language={language}
           roundId={roundId}
           seed={seed}
@@ -689,14 +725,27 @@ export default function App() {
       <AppFrame fillsFrame={false} current={null} onNavigate={navigate}>
         <FillMapResultsPage
           round={fillRound}
-          targets={regions}
-          roundMap={<FillOutcomesMap round={fillRound} />}
-          referenceOf={(regionId) => referenceFor('region', regionId)}
+          targets={FILL_REFERENCE[fillKind]}
+          countWord={fillKind === 'country' ? countriesWord : regionsWord}
+          /* Карта исходов и справочник есть только у регионов: у стран нет
+             карточек, а исход по стране карта итогов пока не показывает. */
+          roundMap={
+            fillKind === 'region' ? <FillOutcomesMap round={fillRound} /> : undefined
+          }
+          referenceOf={
+            fillKind === 'region'
+              ? (regionId) => referenceFor('region', regionId)
+              : undefined
+          }
           isProgressSaved={store.isAvailable}
           onRepeatMistakes={() =>
-            startFillRound(language, summariseFillRound(fillRound).idsToReview)
+            startFillRound(
+              fillKind,
+              language,
+              summariseFillRound(fillRound).idsToReview,
+            )
           }
-          onNewRound={() => startFillRound(language, null)}
+          onNewRound={() => startFillRound(fillKind, language, null)}
           onExit={goToModes}
         />
       </AppFrame>
@@ -1078,6 +1127,10 @@ export default function App() {
           }}
           onStartCountryRound={(exerciseType, nextLanguage, level) => {
             setDifficulty(level);
+            if (exerciseType === 'find-on-map') {
+              startFindCountries(nextLanguage, countries, level);
+              return;
+            }
             startCountryRound(exerciseType, nextLanguage);
           }}
           onStartCityRound={(exerciseType, nextLanguage, citySet, level) => {

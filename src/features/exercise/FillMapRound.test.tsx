@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
+import { countries, type Country } from '../../content/countries';
 import { regions } from '../../content/regions';
 import type { Region } from '../../content/types';
 import { FillMapRound, MISS_FLASH_MS, REVEAL_MS } from './FillMapRound';
@@ -6,7 +7,8 @@ import { FillMapRound, MISS_FLASH_MS, REVEAL_MS } from './FillMapRound';
 function renderRound() {
   return render(
     <FillMapRound
-      regions={regions}
+      kind="region"
+      targets={regions}
       language="ru"
       roundId="r1"
       seed={1}
@@ -207,4 +209,83 @@ it('карта на экране раунда без заголовка «Инт
   expect(
     screen.queryByRole('heading', { name: 'Интерактивная карта' }),
   ).toBeNull();
+});
+
+describe('страны', () => {
+  function renderCountryRound() {
+    return render(
+      <FillMapRound
+        kind="country"
+        targets={countries}
+        language="ru"
+        roundId="r1"
+        seed={1}
+        onFinish={() => {}}
+        onExit={() => {}}
+      />,
+    );
+  }
+
+  function askedCountry(): Country {
+    const name = screen.getByTestId('fill-target').textContent;
+
+    return countries.find((country) => country.nameRu === name)!;
+  }
+
+  function countryButton(country: Country): HTMLElement {
+    return screen.getByRole('button', {
+      name: new RegExp(`^${country.nameRu}, ${country.nameZh}`),
+    });
+  }
+
+  /* Слой стран подгружается отдельно: ответы ждут, пока он встанет. */
+  async function countryLayerReady() {
+    await screen.findAllByRole(
+      'button',
+      { name: new RegExp(`^${countries[0].nameRu}, `) },
+      { timeout: 5000 },
+    );
+  }
+
+  it('лёгкий уровень по странам закрашивает найденную страну', async () => {
+    const { container } = renderCountryRound();
+    await countryLayerReady();
+
+    expect(screen.getByText('Найдите страну на карте.')).toBeInTheDocument();
+    const first = askedCountry();
+    fireEvent.click(countryButton(first));
+
+    expect(
+      container.querySelector(`[data-country-id="${first.id}"]`),
+    ).toHaveAttribute('data-outcome', 'correct');
+    expect(screen.getByTestId('fill-progress')).toHaveTextContent(
+      `Закрашено 1 из ${countries.length}`,
+    );
+  });
+
+  it('промах по стране называет её словом «страна»', async () => {
+    renderCountryRound();
+    await countryLayerReady();
+
+    const asked = askedCountry();
+    const other = countries.find((country) => country.id !== asked.id)!;
+    fireEvent.click(countryButton(other));
+
+    expect(
+      screen.getByText('Не эта страна. Осталось попыток: 2.'),
+    ).toBeInTheDocument();
+  });
+
+  it('нажатие по закрытой стране не тратит попытку', async () => {
+    renderCountryRound();
+    await countryLayerReady();
+
+    const first = askedCountry();
+    fireEvent.click(countryButton(first));
+    fireEvent.click(countryButton(first));
+
+    expect(screen.getByText('Попытка 1 из 3')).toBeInTheDocument();
+    expect(screen.getByTestId('fill-progress')).toHaveTextContent('Закрашено 1 из');
+    expect(screen.queryByText(/Не эта страна/)).toBeNull();
+  });
 });
