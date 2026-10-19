@@ -14,7 +14,6 @@ import { HomePage } from './HomePage';
 function renderHome(attempts: readonly Attempt[] = []) {
   const handlers = {
     onStartRound: vi.fn(),
-    onStartFillRound: vi.fn(),
     onStartCountryRound: vi.fn(),
     onStartCityRound: vi.fn(),
     onStartLandmarkRound: vi.fn(),
@@ -29,7 +28,12 @@ function renderHome(attempts: readonly Attempt[] = []) {
   };
 
   const { container } = render(
-    <HomePage regions={regions} attempts={attempts} {...handlers} />,
+    <HomePage
+      regions={regions}
+      attempts={attempts}
+      difficulty="easy"
+      {...handlers}
+    />,
   );
 
   return { ...handlers, container };
@@ -61,7 +65,7 @@ it('на экране ровно одна главная кнопка', () => {
 
 /*
  * Главный шаг ведёт к выбору, а не запускает раунд сам. Прежде здесь стоял
- * вычисленный шаг — «Начать: найти на карте» или «Повторить 2 региона»: он
+ * вычисленный шаг — «Начать: найти регион» или «Повторить 2 региона»: он
  * решал за ученика, во что играть, и на первом экране объявлял объём
  * тренажёра числом ошибок.
  */
@@ -86,10 +90,12 @@ it('строка повтора называет ошибочные регион
 
   fireEvent.click(within(strip).getByRole('button', { name: 'Начать повтор' }));
 
-  expect(onStartRound).toHaveBeenCalledWith('find-on-map', 'ru', [
-    'hunan',
-    'hubei',
-  ]);
+  expect(onStartRound).toHaveBeenCalledWith(
+    'find-on-map',
+    'ru',
+    ['hunan', 'hubei'],
+    'easy',
+  );
 });
 
 /*
@@ -142,7 +148,7 @@ it('карточка открытого режима запускает свой
   fireEvent.click(screen.getByRole('button', { name: /Назвать регион/ }));
   fireEvent.click(screen.getByRole('button', { name: 'Начать' }));
 
-  expect(onStartRound).toHaveBeenCalledWith('name-target', 'ru', null);
+  expect(onStartRound).toHaveBeenCalledWith('name-target', 'ru', null, 'easy');
 });
 
 /*
@@ -158,7 +164,7 @@ it('карточка игры запускается без всякой ист�
   fireEvent.click(card);
   fireEvent.click(screen.getByRole('button', { name: 'Начать' }));
 
-  expect(onStartRound).toHaveBeenCalledWith('match-pair', 'ru', null);
+  expect(onStartRound).toHaveBeenCalledWith('match-pair', 'ru', null, 'easy');
 });
 
 /*
@@ -181,14 +187,26 @@ it('все объявленные режимы написаны и запуск�
   expect(screen.queryByText(/готовится/)).not.toBeInTheDocument();
 });
 
-it('заполнение карты идёт своим раундом, а не упражнением', () => {
-  const { onStartFillRound, onStartRound } = renderHome();
+/*
+ * «Найти на карте» и «Заполнить карту» слиты в «Найти регион» (решение
+ * владельца от 2026-10-18): уровень выбирается в окне и уходит в запуск.
+ */
+it('«Найти регион» запускается с выбранным уровнем', () => {
+  const { onStartRound } = renderHome();
 
-  fireEvent.click(screen.getByRole('button', { name: /Заполнить карту/ }));
+  openCard(/Найти регион/);
+  fireEvent.click(screen.getByRole('radio', { name: /Сложный/ }));
   fireEvent.click(screen.getByRole('button', { name: 'Начать' }));
 
-  expect(onStartFillRound).toHaveBeenCalledWith('ru');
-  expect(onStartRound).not.toHaveBeenCalled();
+  expect(onStartRound).toHaveBeenCalledWith('find-on-map', 'ru', null, 'hard');
+});
+
+it('у игры без уровней группы «Сложность» в окне нет', () => {
+  renderHome();
+
+  openCard(/Назвать регион/);
+
+  expect(screen.queryByRole('group', { name: 'Сложность' })).toBeNull();
 });
 
 it('ведёт в атлас', () => {
@@ -270,8 +288,8 @@ it('раздел режимов принимает фокус: шапка вед
     <HomePage
       regions={regions}
       attempts={[]}
+      difficulty="easy"
       onStartRound={vi.fn()}
-      onStartFillRound={vi.fn()}
       onStartCountryRound={vi.fn()}
       onStartCityRound={vi.fn()}
       onStartLandmarkRound={vi.fn()}
@@ -346,7 +364,7 @@ it('описание игры стоит в окне перед стартом, 
   const summary = MODE_CARDS[0].summary;
   expect(screen.queryByText(summary)).toBeNull();
 
-  openCard(/Найти на карте/);
+  openCard(/Найти регион/);
 
   expect(within(screen.getByRole('dialog')).getByText(summary)).toBeInTheDocument();
 });
@@ -354,7 +372,7 @@ it('описание игры стоит в окне перед стартом, 
 it('спрашивает язык перед стартом, а не запускает раунд сразу', () => {
   const { onStartRound } = renderHome();
 
-  openCard(/Найти на карте/);
+  openCard(/Найти регион/);
 
   expect(screen.getByRole('dialog')).toBeInTheDocument();
   expect(onStartRound).not.toHaveBeenCalled();
@@ -363,11 +381,11 @@ it('спрашивает язык перед стартом, а не запус�
 it('запускает игру на выбранном языке', () => {
   const { onStartRound } = renderHome();
 
-  openCard(/Найти на карте/);
+  openCard(/Найти регион/);
   fireEvent.click(screen.getByRole('radio', { name: '中文' }));
   fireEvent.click(screen.getByRole('button', { name: 'Начать' }));
 
-  expect(onStartRound).toHaveBeenCalledWith('find-on-map', 'zh', null);
+  expect(onStartRound).toHaveBeenCalledWith('find-on-map', 'zh', null, 'easy');
 });
 
 /*
@@ -396,7 +414,7 @@ it('окно городской игры предлагает два набор�
   );
   fireEvent.click(screen.getByRole('button', { name: 'Начать' }));
 
-  expect(onStartCityRound).toHaveBeenCalledWith('find-on-map', 'ru', 'notable');
+  expect(onStartCityRound).toHaveBeenCalledWith('find-on-map', 'ru', 'notable', 'easy');
 });
 
 /*
@@ -442,7 +460,7 @@ it('карточка порядка запускает расстановку', 
 it('«Отмена» закрывает окно и ничего не запускает', () => {
   const { onStartRound } = renderHome();
 
-  openCard(/Найти на карте/);
+  openCard(/Найти регион/);
   fireEvent.click(screen.getByRole('button', { name: 'Отмена' }));
 
   expect(screen.queryByRole('dialog')).toBeNull();
@@ -463,7 +481,7 @@ it('умолчание в окне берётся из языка последн
     },
   ]);
 
-  openCard(/Найти на карте/);
+  openCard(/Найти регион/);
 
   expect(screen.getByRole<HTMLInputElement>('radio', { name: '中文' }).checked).toBe(
     true,
@@ -473,9 +491,9 @@ it('умолчание в окне берётся из языка последн
 it('окно называет игру, в которую попадёшь', () => {
   renderHome();
 
-  openCard(/Заполнить карту/);
+  openCard(/Найти регион/);
 
-  expect(screen.getByRole('heading', { name: 'Заполнить карту' })).toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: 'Найти регион' })).toBeInTheDocument();
 });
 
 it('показывает обе игры по физической географии', () => {
@@ -492,7 +510,7 @@ it('запускает игру про страны с главной', () => {
   fireEvent.click(screen.getByRole('button', { name: /Найти страну/ }));
   fireEvent.click(screen.getByRole('button', { name: 'Начать' }));
 
-  expect(onStartCountryRound).toHaveBeenCalledWith('find-on-map', 'ru');
+  expect(onStartCountryRound).toHaveBeenCalledWith('find-on-map', 'ru', 'easy');
 });
 
 /*

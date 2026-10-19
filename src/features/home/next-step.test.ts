@@ -28,7 +28,7 @@ function attempt(
 it('без истории предлагает начать с поиска на карте по всем регионам', () => {
   const step = nextStep([], NOW);
 
-  expect(step.label).toBe('Начать: найти на карте');
+  expect(step.label).toBe('Начать: найти регион');
   expect(step.exerciseType).toBe('find-on-map');
   expect(step.language).toBe('ru');
   expect(step.regionIds).toBeNull();

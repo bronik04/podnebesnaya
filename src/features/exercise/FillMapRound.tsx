@@ -208,7 +208,7 @@ export function FillMapRound({
 
   return (
     <RoundStage
-      title={roundTitle('fill-map')}
+      title={roundTitle('find-on-map')}
       prompt={prompt}
       // Показ неугаданного региона идёт на карте (`mapHighlight`); плашка уже
       // задаёт следующий вопрос, и метить её кромкой ответа было бы неверно.

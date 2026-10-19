@@ -79,9 +79,11 @@ async function settle(): Promise<void> {
 /*
  * Раунд начинается карточкой режима и окном перед стартом: в герое кнопки
  * запуска больше нет — главный шаг ведёт к выбору, а не запускает игру сам.
+ * «Найти регион» на сложном уровне — прежняя «Найти на карте».
  */
 function startFindOnMap(): void {
-  fireEvent.click(screen.getByRole('button', { name: /Найти на карте/ }));
+  fireEvent.click(screen.getByRole('button', { name: /Найти регион/ }));
+  fireEvent.click(screen.getByRole('radio', { name: /Сложный/ }));
   fireEvent.click(screen.getByRole('button', { name: 'Начать' }));
 }
 
@@ -373,10 +375,9 @@ it('все написанные игры открыты сразу, без вс�
   render(<App />);
 
   for (const name of [
-    /Найти на карте/,
+    /Найти регион/,
     /Назвать регион/,
     /Регион — столица/,
-    /Заполнить карту/,
     /Династии и даты/,
     /Узнать по фотографии/,
   ]) {
@@ -388,7 +389,7 @@ it('запускает раунд по физической географии �
   render(<App />);
 
   fireEvent.click(screen.getByRole('button', { name: /Найти объект/ }));
-  // Точное имя, а не «начинается с»: в герое стоит «Начать: найти на карте».
+  // Точное имя, а не «начинается с»: в герое стоит «Начать: найти регион».
   fireEvent.click(screen.getByRole('button', { name: 'Начать' }));
   await settle();
 
@@ -457,7 +458,8 @@ it('раунд по истории доходит до итога и счита�
 
 it('итог заполнения ведёт в раунд по ошибочным регионам', async () => {
   render(<App />);
-  fireEvent.click(screen.getByRole('button', { name: /Заполнить карту/ }));
+  // Лёгкий уровень «Найти регион» — прежняя «Заполнить карту»; он по умолчанию.
+  fireEvent.click(screen.getByRole('button', { name: /Найти регион/ }));
   fireEvent.click(screen.getByRole('button', { name: 'Начать' }));
   await settle();
 

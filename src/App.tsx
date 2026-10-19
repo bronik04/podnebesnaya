@@ -76,6 +76,7 @@ import type { MapZoom } from './map/MapControls';
 import { LeaveRoundDialog } from './ui/LeaveRoundDialog';
 import { SiteHeader, type SiteSection } from './ui/SiteHeader';
 import { referenceTargetOf } from './features/results/reference-target';
+import { DEFAULT_DIFFICULTY, type Difficulty } from './domain/difficulty';
 
 type RoundRequest = ExerciseType;
 
@@ -257,6 +258,12 @@ export default function App() {
    * с итогов раунда по физической карте. Атлас берёт его только при открытии.
    */
   const [atlasFeatureId, setAtlasFeatureId] = useState<string | null>(null);
+  /*
+   * Уровень сложности игр «Найти…» (решение владельца от 2026-10-18): тот,
+   * что выбран в окне последним, общий для всех игр, до перезагрузки — как вид
+   * рельефа. Хранилище его не держит: модель данных не меняется.
+   */
+  const [difficulty, setDifficulty] = useState<Difficulty>(DEFAULT_DIFFICULTY);
   const [zoom, setZoom] = useState<MapZoom>(1);
   const [collectionId, setCollectionId] = useState<string | null>(null);
   /*
@@ -1029,14 +1036,37 @@ export default function App() {
         <HomePage
           regions={regions}
           attempts={progress.attempts}
-          onStartRound={startRound}
-          onStartFillRound={startFillRound}
-          onStartCountryRound={startCountryRound}
-          onStartCityRound={startCityRound}
+          difficulty={difficulty}
+          onStartRound={(request, nextLanguage, regionIds, level) => {
+            setDifficulty(level);
+            /*
+             * Лёгкий «Найти регион» идёт ходом заполнения карты; пул и повтор
+             * тем же уровнем — следующим шагом плана уровней сложности.
+             */
+            if (request === 'find-on-map' && level === 'easy' && regionIds === null) {
+              startFillRound(nextLanguage);
+              return;
+            }
+            startRound(request, nextLanguage, regionIds);
+          }}
+          onStartCountryRound={(exerciseType, nextLanguage, level) => {
+            setDifficulty(level);
+            startCountryRound(exerciseType, nextLanguage);
+          }}
+          onStartCityRound={(exerciseType, nextLanguage, citySet, level) => {
+            setDifficulty(level);
+            startCityRound(exerciseType, nextLanguage, citySet);
+          }}
           onStartCultureRound={startCultureRound}
           onStartHistoryRound={startHistoryRound}
-          onStartPhysicalRound={startPhysicalRound}
-          onStartLandmarkRound={startLandmarkRound}
+          onStartPhysicalRound={(exerciseType, nextLanguage, set, level) => {
+            setDifficulty(level);
+            startPhysicalRound(exerciseType, nextLanguage, set);
+          }}
+          onStartLandmarkRound={(exerciseType, nextLanguage, set, level) => {
+            setDifficulty(level);
+            startLandmarkRound(exerciseType, nextLanguage, set);
+          }}
           onOpenAtlas={() => openAtlas(null)}
           /*
             Карта героя открывает атлас на нажатой области: выбор ставится до
