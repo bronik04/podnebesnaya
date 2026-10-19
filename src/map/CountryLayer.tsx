@@ -4,6 +4,7 @@ import {
   COUNTRY_SHAPES,
   DISPUTED_SHAPES,
 } from './country-geometry';
+import { withOutcome, type MarkOutcome } from './mark-outcome';
 import type { AnswerState } from './region-selection';
 
 export type CountryLayerProps = {
@@ -17,9 +18,15 @@ export type CountryLayerProps = {
    */
   readonly answers?: boolean;
   readonly answerStates?: Readonly<Record<string, AnswerState>>;
+  /**
+   * Исходы закрытых стран за раунд — лёгкий уровень. Закрытая страна больше
+   * ответа не принимает: это решает раунд, а слой помечает её недоступной.
+   */
+  readonly outcomes?: Readonly<Record<string, MarkOutcome>>;
 };
 
 const NO_STATES: Readonly<Record<string, AnswerState>> = {};
+const NO_OUTCOMES: Readonly<Record<string, MarkOutcome>> = {};
 
 /**
  * Слой сопредельных государств: четырнадцать стран за границей Китая.
@@ -41,6 +48,7 @@ export function CountryLayer({
   onSelect,
   answers = true,
   answerStates = NO_STATES,
+  outcomes = NO_OUTCOMES,
 }: CountryLayerProps) {
   return (
     <g className="country-layer" data-answers={answers}>
@@ -63,6 +71,7 @@ export function CountryLayer({
       {COUNTRY_SHAPES.map((shape) => {
         const country = countryById(shape.id);
         const answerState = answerStates[shape.id];
+        const outcome = outcomes[shape.id];
 
         return (
           <path
@@ -72,6 +81,7 @@ export function CountryLayer({
             data-country-id={shape.id}
             data-selected={shape.id === selectedCountryId}
             data-answer-state={answerState}
+            data-outcome={outcome}
             role={answers ? 'button' : undefined}
             tabIndex={answers ? 0 : undefined}
             /*
@@ -82,10 +92,14 @@ export function CountryLayer({
              * достопримечательностей.
              */
             aria-label={
-              answers ? `${country?.nameRu}, ${country?.nameZh}` : undefined
+              answers
+                ? withOutcome(`${country?.nameRu}, ${country?.nameZh}`, outcome)
+                : undefined
             }
             aria-hidden={answers ? undefined : 'true'}
-            aria-disabled={answers && answerState ? true : undefined}
+            aria-disabled={
+              answers && (answerState || outcome) ? true : undefined
+            }
             onClick={answers ? () => onSelect(shape.id) : undefined}
             onKeyDown={
               answers

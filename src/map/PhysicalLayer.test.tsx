@@ -271,6 +271,22 @@ it('моря нарисованы вне маски суши и без пост�
     expect(container.querySelectorAll('.relief-outcome')).toHaveLength(1);
   });
 
+  it('исход «со второй попытки» стоит на цели и назван в её имени', () => {
+    const { container } = renderLayer({
+      onSelect: () => {},
+      featureOutcomes: { yangtze: 'second-try', everest: 'second-try' },
+    });
+
+    expect(
+      container.querySelector('.river-line[data-feature-id="yangtze"]'),
+    ).toHaveAttribute('data-outcome', 'second-try');
+    expect(
+      container.querySelector('.point-hit[data-feature-id="everest"]'),
+    ).toHaveAttribute('data-outcome', 'second-try');
+    // Три: Янцзы, Эверест и участок «Три ущелья» — он берёт исход своей реки.
+    expect(screen.getAllByLabelText(/ — верно со второй попытки$/)).toHaveLength(3);
+  });
+
   it('без исходов признака нет ни у кого', () => {
     const { container } = renderLayer();
 

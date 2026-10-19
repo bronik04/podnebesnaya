@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import type { MapCluster } from './cluster';
+import type { MarkOutcome } from './mark-outcome';
 
 /**
  * Свёрнутая гроздь на карте: знак своего слоя и кружок с числом.
@@ -29,7 +30,7 @@ export type ClusterMarkProps = {
    */
   readonly selected: boolean;
   /** Исход ответа по грозди — её знак красится так же, как одиночный. */
-  readonly outcome?: 'correct' | 'incorrect';
+  readonly outcome?: MarkOutcome;
   /** Знак свёрнутой грозди — рисуется в её середине. */
   readonly mark: ReactNode;
   readonly onActivate?: () => void;

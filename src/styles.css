@@ -1019,6 +1019,37 @@ button.text:hover:enabled {
 }
 
 /*
+ * Исходы стран за раунд — лёгкий уровень. Верный и ошибочный — те же, что у
+ * ответа; «со второй попытки» — штриховка, как у региона с тем же исходом, и
+ * точечная обводка: от верного его отличает штрих, от ошибочного — цвет и
+ * штрих.
+ */
+.china-map .country[data-outcome='correct'] {
+  fill: var(--map-correct);
+  stroke: var(--map-correct-ink);
+  stroke-width: var(--map-border-width-strong);
+}
+
+.china-map .country[data-outcome='second-try'] {
+  fill: url('#map-hatch-second-try');
+  stroke: var(--map-correct-ink);
+  stroke-dasharray: 1.5 1.5;
+  stroke-width: var(--map-border-width-strong);
+}
+
+.china-map .country[data-outcome='incorrect'] {
+  fill: url('#map-hatch-incorrect');
+  stroke: var(--map-incorrect-mark);
+  stroke-dasharray: 4 2;
+  stroke-width: var(--map-border-width-strong);
+}
+
+/* Закрытая страна своё отыграла: нажатие на неё ничего не делает. */
+.china-map .country[data-outcome] {
+  cursor: not-allowed;
+}
+
+/*
  * Ответ закрыт — закрыты все страны, а не только запертые: то же правило, что
  * у областей, и по тому же доводу. Палец, наведённый на верную и на ошибочную,
  * обещал бы второй ответ.
@@ -1413,6 +1444,54 @@ button.text:hover:enabled {
   stroke-width: var(--map-border-width-strong);
 }
 
+/*
+ * «Со второй попытки» — лёгкий уровень: нефритовый знак, как у верного, и
+ * точечное кольцо. Кольца трёх исходов различаются штрихом — сплошное,
+ * точечное, пунктирное, — и пара исходов не держится на одном цвете.
+ */
+.china-map .landmark[data-outcome='second-try'] .landmark-mark,
+.china-map .map-cluster[data-outcome='second-try'] .landmark-mark,
+.china-map .city[data-outcome='correct'] .city-mark,
+.china-map .city[data-outcome='second-try'] .city-mark,
+.china-map .map-cluster[data-outcome='correct'] .city-mark,
+.china-map .map-cluster[data-outcome='second-try'] .city-mark {
+  fill: var(--map-correct);
+  stroke: var(--surface-paper-bright);
+  stroke-width: var(--map-border-width-strong);
+}
+
+.china-map .landmark[data-outcome='second-try'] .landmark-halo,
+.china-map .map-cluster[data-outcome='second-try'] .cluster-halo,
+.china-map .city[data-outcome='second-try'] .city-halo {
+  fill: none;
+  stroke: var(--map-correct);
+  stroke-dasharray: 1.5 1.5;
+  stroke-width: var(--map-border-width-strong);
+}
+
+/* Города — тем же языком, что звёзды: знак и кольцо. */
+.china-map .city[data-outcome='correct'] .city-halo,
+.china-map .map-cluster[data-outcome='correct'] .cluster-halo {
+  fill: none;
+  stroke: var(--map-correct);
+  stroke-dasharray: none;
+  stroke-width: var(--map-border-width-strong);
+}
+
+.china-map .city[data-outcome='incorrect'] .city-mark,
+.china-map .map-cluster[data-outcome='incorrect'] .city-mark {
+  fill: var(--map-incorrect-mark);
+  stroke: var(--surface-paper-bright);
+  stroke-width: var(--map-border-width-strong);
+}
+
+.china-map .city[data-outcome='incorrect'] .city-halo {
+  fill: none;
+  stroke: var(--map-incorrect-mark);
+  stroke-dasharray: 4 2;
+  stroke-width: var(--map-border-width-strong);
+}
+
 .china-map .landmark-hit {
   fill: transparent;
 }
@@ -1648,6 +1727,14 @@ button.text:hover:enabled {
   fill: url('#map-hatch-physical-incorrect');
 }
 
+/* «Со второй попытки» — штриховка верного и нефритовая точечная обводка. */
+.china-map .physical-layer .relief-outcome[data-outcome='second-try'] {
+  fill: url('#map-hatch-physical-correct');
+  stroke: var(--map-correct-mark);
+  stroke-dasharray: 1.5 1.5;
+  stroke-width: var(--map-border-width-strong);
+}
+
 .china-map .physical-layer .river-line[data-outcome] {
   filter: none;
   stroke-width: var(--map-river-width-strong);
@@ -1660,6 +1747,12 @@ button.text:hover:enabled {
 .china-map .physical-layer .river-line[data-outcome='incorrect'] {
   stroke: var(--map-incorrect-mark-relief);
   stroke-dasharray: 6 3;
+}
+
+/* Точки, а не пунктир: от ошибочной линии отличается и штрихом, и цветом. */
+.china-map .physical-layer .river-line[data-outcome='second-try'] {
+  stroke: var(--map-correct-mark);
+  stroke-dasharray: 1.5 2;
 }
 
 /*
@@ -1744,6 +1837,14 @@ button.text:hover:enabled {
   stroke-width: 1.2;
 }
 
+.china-map .physical-layer .sea-shape[data-outcome='second-try'] {
+  filter: none;
+  fill: url('#map-hatch-physical-correct');
+  stroke: var(--map-correct-mark);
+  stroke-dasharray: 1.5 2;
+  stroke-width: 1.2;
+}
+
 
 /*
  * Знак крайней точки. Род читается формой: треугольник вверх у вершины, вниз у
@@ -1800,6 +1901,34 @@ button.text:hover:enabled {
 }
 
 /*
+ * Исход у вершины и впадины — заливкой и обводкой знака: нефрит у верного,
+ * нефрит с точечной обводкой у взятого со второй попытки, киноварь с
+ * пунктиром у ошибки.
+ */
+.china-map .physical-layer .point-hit[data-outcome] + .point-mark-shape {
+  stroke-width: var(--map-border-width-strong);
+  transform: scale(var(--map-point-highlight-scale));
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.china-map .physical-layer .point-hit[data-outcome='correct'] + .point-mark-shape,
+.china-map .physical-layer .point-hit[data-outcome='second-try'] + .point-mark-shape {
+  fill: var(--map-correct-mark);
+  stroke: var(--surface-paper-bright);
+}
+
+.china-map .physical-layer .point-hit[data-outcome='second-try'] + .point-mark-shape {
+  stroke-dasharray: 1.5 1.5;
+}
+
+.china-map .physical-layer .point-hit[data-outcome='incorrect'] + .point-mark-shape {
+  fill: var(--map-incorrect-mark-relief);
+  stroke: var(--surface-paper-bright);
+  stroke-dasharray: 3 1.5;
+}
+
+/*
  * Круг цели остаётся: он задаёт размер, по которому карта считает попадание,
  * и остановку Tab. Указателя у него нет по той же причине, что у формы.
  */
@@ -1833,6 +1962,12 @@ button.text:hover:enabled {
 .china-map .physical-layer .lake-halo[data-outcome='incorrect'] {
   stroke: var(--map-incorrect-mark-relief);
   stroke-dasharray: 3 2;
+  stroke-width: 2;
+}
+
+.china-map .physical-layer .lake-halo[data-outcome='second-try'] {
+  stroke: var(--map-correct-mark);
+  stroke-dasharray: 1 1.5;
   stroke-width: 2;
 }
 

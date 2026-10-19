@@ -18,6 +18,7 @@ import {
   MAP_VIEWBOX_WIDTH,
 } from './target-size';
 import { RIVER_SHAPES } from './river-hit';
+import { withOutcome, type MarkOutcome } from './mark-outcome';
 
 /**
  * Физическая карта: заливка по ступеням рельефа и шесть рек поверх.
@@ -145,7 +146,7 @@ const MASK_ID = 'china-land-mask';
 const NO_OUTCOMES: Readonly<Record<string, FeatureOutcome>> = {};
 
 /** Чем кончился ответ по объекту. */
-export type FeatureOutcome = 'correct' | 'incorrect';
+export type FeatureOutcome = MarkOutcome;
 
 export type PhysicalLayerProps = {
   readonly selectedFeatureId?: string | null;
@@ -299,7 +300,14 @@ export function PhysicalLayer({
                 isTarget ? featureOutcomes[shape.featureId!] : undefined
               }
               role={answers ? 'button' : undefined}
-              aria-label={isTarget ? NAME_OF.get(shape.featureId!) : undefined}
+              aria-label={
+                isTarget
+                  ? withOutcome(
+                      NAME_OF.get(shape.featureId!) ?? shape.featureId!,
+                      featureOutcomes[shape.featureId!],
+                    )
+                  : undefined
+              }
               aria-hidden={isTarget ? undefined : 'true'}
               tabIndex={answers ? 0 : -1}
               onFocus={answers ? () => setHoveredNodeId(shape.featureId!) : undefined}
@@ -387,7 +395,7 @@ export function PhysicalLayer({
                 data-hovered={hoveredLine}
                 data-outcome={outcome}
                 role={onSelect ? 'button' : undefined}
-                aria-label={label}
+                aria-label={withOutcome(label, outcome)}
                 tabIndex={onSelect ? 0 : -1}
                 onFocus={onSelect ? () => setHoveredNodeId(line.featureId) : undefined}
                 onBlur={onSelect ? () => setHoveredNodeId(null) : undefined}
@@ -416,7 +424,10 @@ export function PhysicalLayer({
       <g className="lakes" mask={`url(#${MASK_ID})`}>
         {lakeMarks(zoom).map((mark) => {
           const shape = LAKE_SHAPES.find((item) => item.featureId === mark.featureId)!;
-          const label = NAME_OF.get(mark.featureId) ?? mark.featureId;
+          const label = withOutcome(
+            NAME_OF.get(mark.featureId) ?? mark.featureId,
+            featureOutcomes[mark.featureId],
+          );
           const answers = onSelect !== undefined;
 
           /*
@@ -496,7 +507,10 @@ export function PhysicalLayer({
       */}
       <g className="seas">
         {MARINE_SHAPES.map((shape) => {
-          const label = NAME_OF.get(shape.featureId) ?? shape.featureId;
+          const label = withOutcome(
+            NAME_OF.get(shape.featureId) ?? shape.featureId,
+            featureOutcomes[shape.featureId],
+          );
           const answers = onSelect !== undefined;
 
           return (
@@ -542,7 +556,10 @@ export function PhysicalLayer({
       */}
       <g className="points">
         {pointMarks(zoom).map((mark) => {
-          const label = NAME_OF.get(mark.featureId) ?? mark.featureId;
+          const label = withOutcome(
+            NAME_OF.get(mark.featureId) ?? mark.featureId,
+            featureOutcomes[mark.featureId],
+          );
           const answers = onSelect !== undefined;
           const up = POINT_KIND_OF.get(mark.featureId) === 'peak';
 

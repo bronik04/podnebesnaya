@@ -257,3 +257,42 @@ it('помечает гроздь со спрошенным городом', () 
     container.querySelector('.map-cluster[data-selected="true"]'),
   ).not.toBeNull();
 });
+
+it('рисует только города из `cityIds`', () => {
+  const { container } = renderMap({ cityIds: ['wuhan'] });
+
+  expect(
+    [...container.querySelectorAll('.city')].map((city) =>
+      city.getAttribute('data-city-id'),
+    ),
+  ).toEqual(['wuhan']);
+});
+
+it('ставит городу исход и называет его', () => {
+  const { container } = renderMap({
+    cityIds: ['wuhan'],
+    onSelectCity: () => {},
+    cityOutcomes: { wuhan: 'second-try' },
+  });
+
+  expect(container.querySelector('.city[data-city-id="wuhan"]')).toHaveAttribute(
+    'data-outcome',
+    'second-try',
+  );
+  expect(
+    screen.getByRole('button', { name: /^Ухань, 武汉 — верно со второй попытки$/ }),
+  ).toBeInTheDocument();
+});
+
+/* У Пекина-региона и Пекина-города один идентификатор: исходы не смешиваются. */
+it('исход города не красит область с тем же идентификатором', () => {
+  const { container } = renderMap({ cityOutcomes: { beijing: 'correct' } });
+
+  expect(
+    container.querySelector('[data-region-id="beijing"]')?.getAttribute('data-outcome'),
+  ).toBeNull();
+  expect(container.querySelector('.city[data-city-id="beijing"]')).toHaveAttribute(
+    'data-outcome',
+    'correct',
+  );
+});

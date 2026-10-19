@@ -109,3 +109,20 @@ it('Южная Корея нарисована фоном: ни роли, ни �
   expect(southKorea).toHaveAttribute('aria-hidden', 'true');
   expect(screen.getAllByRole('button')).toHaveLength(countries.length);
 });
+
+it('ставит стране исход и называет его', () => {
+  render(
+    <svg>
+      <CountryLayer
+        selectedCountryId={null}
+        onSelect={() => {}}
+        outcomes={{ mongolia: 'second-try' }}
+      />
+    </svg>,
+  );
+
+  const mongolia = screen.getByRole('button', {
+    name: 'Монголия, 蒙古国 — верно со второй попытки',
+  });
+  expect(mongolia).toHaveAttribute('data-outcome', 'second-try');
+});
