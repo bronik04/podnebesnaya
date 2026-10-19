@@ -6,7 +6,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { citiesUpTo } from './content/cities';
+import { cities, citiesUpTo } from './content/cities';
 import { collectionById } from './content/collections';
 import {
   physicalFeatures,
@@ -212,6 +212,7 @@ function newRoundId(): string {
 const FILL_REFERENCE: Readonly<Record<FillKind, readonly NamedTarget[]>> = {
   region: regions,
   country: countries,
+  city: cities,
 };
 
 export default function App() {
@@ -226,6 +227,11 @@ export default function App() {
   const [reliefStyle, setReliefStyle] = useState<ReliefStyle>('color');
   const [roundPool, setRoundPool] = useState<readonly Region[]>(regions);
   const [cityPool, setCityPool] = useState<readonly City[]>([]);
+  /*
+   * Набор игры по городам: им пользуются «Новый раунд» и карта лёгкого уровня
+   * в повторе — та рисует весь набор, а не только ошибки.
+   */
+  const [citySet, setCitySet] = useState<CitySet>('capital');
   const [landmarkPool, setLandmarkPool] = useState<readonly Landmark[]>([]);
   /*
    * Двенадцать целей всегда; сужается пул только «Повторить ошибки». Набор
@@ -445,9 +451,10 @@ export default function App() {
   function startCityRound(
     exerciseType: ExerciseType,
     nextLanguage: QuestionLanguage,
-    citySet: CitySet,
+    set: CitySet,
   ) {
-    setCityPool(cityPoolFor(exerciseType, citySet));
+    setCitySet(set);
+    setCityPool(cityPoolFor(exerciseType, set));
     setExerciseTypes([exerciseType]);
     setLanguage(nextLanguage);
     setRoundId(newRoundId());
@@ -616,6 +623,24 @@ export default function App() {
     startRound('find-on-map', nextLanguage, regionIds);
   }
 
+  /** «Найти город» на уровне — по тому же правилу, что `startFindRegions`. */
+  function startFindCities(
+    nextLanguage: QuestionLanguage,
+    set: CitySet,
+    level: Difficulty = difficulty,
+  ) {
+    if (level === 'easy') {
+      setCitySet(set);
+      startFillRound(
+        'city',
+        nextLanguage,
+        citiesUpTo(set).map((city) => city.id),
+      );
+      return;
+    }
+    startCityRound('find-on-map', nextLanguage, set);
+  }
+
   /** «Найти страну» на уровне — по тому же правилу, что `startFindRegions`. */
   function startFindCountries(
     nextLanguage: QuestionLanguage,
@@ -710,6 +735,11 @@ export default function App() {
         <FillMapRound
           kind={fillKind}
           targets={fillPool}
+          mapIds={
+            fillKind === 'city'
+              ? citiesUpTo(citySet).map((city) => city.id)
+              : undefined
+          }
           language={language}
           roundId={roundId}
           seed={seed}
@@ -726,7 +756,13 @@ export default function App() {
         <FillMapResultsPage
           round={fillRound}
           targets={FILL_REFERENCE[fillKind]}
-          countWord={fillKind === 'country' ? countriesWord : regionsWord}
+          countWord={
+            fillKind === 'country'
+              ? countriesWord
+              : fillKind === 'city'
+                ? citiesWord
+                : regionsWord
+          }
           /* Карта исходов и справочник есть только у регионов: у стран нет
              карточек, а исход по стране карта итогов пока не показывает. */
           roundMap={
@@ -745,7 +781,11 @@ export default function App() {
               summariseFillRound(fillRound).idsToReview,
             )
           }
-          onNewRound={() => startFillRound(fillKind, language, null)}
+          onNewRound={() =>
+            fillKind === 'city'
+              ? startFindCities(language, citySet, 'easy')
+              : startFillRound(fillKind, language, null)
+          }
           onExit={goToModes}
         />
       </AppFrame>
@@ -1016,7 +1056,7 @@ export default function App() {
           }}
           onNewRound={() => {
             if (isCityRound) {
-              startCityRound(exerciseTypes[0], language, 'capital');
+              startCityRound(exerciseTypes[0], language, citySet);
               return;
             }
 
@@ -1133,9 +1173,13 @@ export default function App() {
             }
             startCountryRound(exerciseType, nextLanguage);
           }}
-          onStartCityRound={(exerciseType, nextLanguage, citySet, level) => {
+          onStartCityRound={(exerciseType, nextLanguage, set, level) => {
             setDifficulty(level);
-            startCityRound(exerciseType, nextLanguage, citySet);
+            if (exerciseType === 'find-on-map') {
+              startFindCities(nextLanguage, set, level);
+              return;
+            }
+            startCityRound(exerciseType, nextLanguage, set);
           }}
           onStartCultureRound={startCultureRound}
           onStartHistoryRound={startHistoryRound}

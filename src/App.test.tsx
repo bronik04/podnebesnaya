@@ -9,7 +9,7 @@ import {
 import { MISS_FLASH_MS } from './features/exercise/FillMapRound';
 import { afterEach, beforeEach } from 'vitest';
 import App from './App';
-import { cityById } from './content/cities';
+import { cityById, citiesUpTo } from './content/cities';
 import { countries } from './content/countries';
 import { regions } from './content/regions';
 import type { Region } from './content/types';
@@ -512,6 +512,33 @@ it('«Тренировать» в атласе запускает запомне
   expect(screen.getByText(/Вопрос 1 из 34/)).toBeInTheDocument();
   expect(screen.queryByTestId('fill-target')).toBeNull();
 });
+
+it('«Новый раунд» по городам берёт тот же набор', async () => {
+  render(<App />);
+  fireEvent.click(screen.getByRole('button', { name: /Назвать город/ }));
+  fireEvent.click(screen.getByRole('radio', { name: /И значимые города/ }));
+  fireEvent.click(screen.getByRole('button', { name: 'Начать' }));
+  await settle();
+
+  const total = citiesUpTo('notable').length;
+  expect(screen.getByText(new RegExp(`Вопрос 1 из ${total}`))).toBeInTheDocument();
+
+  vi.useFakeTimers();
+  try {
+    for (let index = 0; index < total; index += 1) {
+      fireEvent.click(screen.getAllByTestId('choice-option')[0]);
+      passFeedback();
+    }
+  } finally {
+    vi.useRealTimers();
+  }
+  await settle();
+
+  fireEvent.click(screen.getByRole('button', { name: 'Новый раунд' }));
+  await settle();
+
+  expect(screen.getByText(new RegExp(`Вопрос 1 из ${total}`))).toBeInTheDocument();
+}, 30_000);
 
 it('итог лёгкого уровня по странам — без карты, со списком ошибок', async () => {
   render(<App />);

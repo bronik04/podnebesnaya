@@ -12,6 +12,7 @@ import {
 import { createSeededRandom } from '../../domain/random';
 import { labelOf, langOf, type QuestionLanguage } from '../../domain/question-language';
 import { ChinaMap, type MapHighlight } from '../../map/ChinaMap';
+import type { MapZoom } from '../../map/MapControls';
 import { markOutcomeOf, type MarkOutcome } from '../../map/mark-outcome';
 import { COUNTRY_FRAME_OUTSET } from '../../map/target-size';
 import type { NamedTarget } from '../results/RoundResultsPage';
@@ -32,7 +33,7 @@ export const MISS_FLASH_MS = 600;
  * Вид целей лёгкого уровня. Ход у всех один — заполнение карты; различаются
  * слой карты и слова. Виды добавляются по шагам плана уровней сложности.
  */
-export type FillKind = 'region' | 'country';
+export type FillKind = 'region' | 'country' | 'city';
 
 type KindWords = {
   readonly title: string;
@@ -54,6 +55,12 @@ const WORDS: Readonly<Record<FillKind, KindWords>> = {
     miss: 'Не эта страна.',
     revealed: 'Попытки кончились. Страна показана на карте.',
   },
+  city: {
+    title: 'find-city',
+    ask: 'Найдите город на карте.',
+    miss: 'Не этот город.',
+    revealed: 'Попытки кончились. Город показан на карте.',
+  },
 };
 
 export type FillMapRoundProps = {
@@ -64,6 +71,12 @@ export type FillMapRoundProps = {
    * что видно.
    */
   readonly targets: readonly NamedTarget[];
+  /**
+   * Какие цели рисовать на карте, если не весь справочник. У городов — набор
+   * раунда: на лёгком уровне карта показывает только его, и в повторе одной
+   * ошибки тоже весь набор, а не одну точку — иначе она и есть ответ.
+   */
+  readonly mapIds?: readonly string[];
   readonly language: QuestionLanguage;
   readonly roundId: string;
   readonly seed: number;
@@ -74,6 +87,7 @@ export type FillMapRoundProps = {
 export function FillMapRound({
   kind,
   targets,
+  mapIds,
   language,
   roundId,
   seed,
@@ -109,6 +123,8 @@ export function FillMapRound({
    * даёт нестабильное значение при каждой перерисовке.
    */
   const [startedAt] = useState(() => performance.now());
+  /* Своё приближение ученика — у городов, где грозди раскрываются заходом. */
+  const [zoom, setZoom] = useState<MapZoom>(1);
   /** Начало текущего региона. `null` — регион ещё не начинали, считаем от старта. */
   const regionStartedAt = useRef<number | null>(null);
 
@@ -175,11 +191,11 @@ export function FillMapRound({
         : null;
 
   /*
-   * Исходы стран — исходы раунда в языке знаков, поверх них вспышка промаха.
-   * Ненайденная страна после третьей попытки уже закрыта исходом «ошибка» и
+   * Исходы стран и городов — исходы раунда в языке знаков, поверх них вспышка промаха.
+   * Ненайденная цель после третьей попытки уже закрыта исходом «ошибка» и
    * на время показа ещё и выбрана — так её видно сразу.
    */
-  const countryOutcomes = useMemo(() => {
+  const markOutcomes = useMemo(() => {
     const marks: Record<string, MarkOutcome> = {};
     for (const [id, outcome] of Object.entries(round.outcomes)) {
       marks[id] = markOutcomeOf(outcome);
@@ -194,7 +210,7 @@ export function FillMapRound({
   function handleSelect(regionId: string) {
     /*
      * Закрытая цель ответа не принимает: повторное нажатие не должно стоить
-     * попытки. У регионов это держит ещё и правило карты, у стран — только
+     * попытки. У регионов это держит ещё и правило карты, у прочих — только
      * этот обработчик.
      */
     if (isRevealing || finished || round.outcomes[regionId] !== undefined) {
@@ -310,7 +326,7 @@ export function FillMapRound({
           interactive={!finished}
           paused={isRevealing}
         />
-      ) : (
+      ) : kind === 'country' ? (
         /* Карта та же, что в сложной «Найти страну» (`CountryRound`). */
         <ChinaMap
           regions={allRegions}
@@ -325,7 +341,27 @@ export function FillMapRound({
           frameOutset={COUNTRY_FRAME_OUTSET}
           selectedCountryId={revealedRegionId}
           onSelectCountry={handleSelect}
-          countryOutcomes={countryOutcomes}
+          countryOutcomes={markOutcomes}
+        />
+      ) : (
+        /* Карта та же, что в сложной «Найти город» (`CityRound`), но с набором. */
+        <ChinaMap
+          regions={allRegions}
+          selectedRegionId={null}
+          onSelect={() => {}}
+          onClear={() => {}}
+          usage="answer"
+          interactive={false}
+          zoom={zoom}
+          onZoomChange={setZoom}
+          questionKey={`${roundId}:${round.currentIndex}`}
+          showsCities
+          cityIds={mapIds}
+          showsCityLabels={false}
+          selectedCityId={revealedRegionId}
+          onSelectCity={handleSelect}
+          cityOutcomes={markOutcomes}
+          showsCallouts={false}
         />
       )}
     </RoundStage>

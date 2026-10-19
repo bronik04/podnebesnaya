@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
+import { citiesUpTo } from '../../content/cities';
 import { countries, type Country } from '../../content/countries';
 import { regions } from '../../content/regions';
 import type { Region } from '../../content/types';
@@ -287,5 +288,57 @@ describe('страны', () => {
     expect(screen.getByText('Попытка 1 из 3')).toBeInTheDocument();
     expect(screen.getByTestId('fill-progress')).toHaveTextContent('Закрашено 1 из');
     expect(screen.queryByText(/Не эта страна/)).toBeNull();
+  });
+});
+
+describe('города', () => {
+  const capitals = citiesUpTo('capital');
+  const capitalIds = capitals.map((city) => city.id);
+
+  function renderCityRound(targets = capitals) {
+    return render(
+      <FillMapRound
+        kind="city"
+        targets={targets}
+        mapIds={capitalIds}
+        language="ru"
+        roundId="r1"
+        seed={1}
+        onFinish={() => {}}
+        onExit={() => {}}
+      />,
+    );
+  }
+
+  /* Точек на карте: отдельные города и члены гроздей. */
+  function drawnCityIds(container: HTMLElement): string[] {
+    const singles = [...container.querySelectorAll('.city[data-city-id]')].map(
+      (city) => city.getAttribute('data-city-id')!,
+    );
+    const clustered = [...container.querySelectorAll('.cluster-count')].reduce(
+      (sum, count) => sum + Number(count.textContent),
+      0,
+    );
+
+    return [...singles, ...Array.from({ length: clustered }, () => 'cluster')];
+  }
+
+  it('на лёгком уровне на карте только города набора', () => {
+    const { container } = renderCityRound();
+
+    const drawn = drawnCityIds(container);
+    expect(drawn).toHaveLength(capitals.length);
+    expect(
+      drawn.filter((id) => id !== 'cluster').every((id) => capitalIds.includes(id)),
+    ).toBe(true);
+    expect(container.querySelector('.city[data-city-id="suzhou"]')).toBeNull();
+    expect(screen.getByText('Найдите город на карте.')).toBeInTheDocument();
+  });
+
+  it('повтор одной ошибки рисует весь набор раунда', () => {
+    const { container } = renderCityRound(capitals.slice(0, 1));
+
+    expect(screen.getByTestId('fill-progress')).toHaveTextContent('Закрашено 0 из 1');
+    expect(drawnCityIds(container)).toHaveLength(capitals.length);
   });
 });
