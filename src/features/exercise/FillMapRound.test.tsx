@@ -452,6 +452,26 @@ describe('физическая карта', () => {
     ).not.toHaveAttribute('data-outcome');
   });
 
+  /* Участок вне пула рисуется своей рекой — и как она, ответа не принимает. */
+  it('«Три ущелья» вне пула закрываются вместе с Янцзы', () => {
+    const pair = ['yangtze', 'yellow-river'].map(
+      (id) => physicalFeatures.find((one) => one.id === id)!,
+    );
+    // При сиде 1 первой спрашивают Янцзы.
+    const { container } = renderPhysicalRound(pair);
+
+    answerOn(container, 'yangtze');
+    const gorges = container.querySelector(
+      '.river-line[data-feature-id="three-gorges"]',
+    )!;
+    expect(gorges).toHaveAttribute('data-outcome', 'correct');
+    expect(gorges).toHaveAttribute('aria-disabled', 'true');
+    answerOn(container, 'three-gorges');
+
+    expect(screen.getByText('Попытка 1 из 3')).toBeInTheDocument();
+    expect(screen.queryByText(/Не этот объект/)).toBeNull();
+  });
+
   it('на лёгком уровне нарисованы все объекты, а не набор', () => {
     const { container } = renderPhysicalRound();
 
@@ -521,30 +541,51 @@ describe('достопримечательности', () => {
     expect(cluster()).toHaveAttribute('data-outcome', 'correct');
   });
 
-  /* Закрытый член грозди ответа не примет — промах пишется открытым. */
-  it('промах по грозди с закрытым первым членом тратит попытку', () => {
+  function pick(ids: readonly string[]) {
     const all = landmarksUpTo('all');
-    const { container } = renderLandmarkRound(
-      all.filter((one) => ['forbidden-city', 'temple-of-heaven', 'potala'].includes(one.id)),
-      all.map((one) => one.id),
-      // При этом сиде Потала спрашивают последней: пекинские звёзды к тому
-      // времени закрыты.
-      2,
-    );
-    const cluster = () =>
-      [...container.querySelectorAll('.map-cluster')].find((one) =>
-        one.querySelector('[aria-label*="Запретный город"]'),
-      )!.querySelector('[role="button"]')!;
 
-    // Сначала закрыть звёзды пекинской грозди, пока не спросят Потала.
-    while (screen.getByTestId('fill-target').textContent !== 'Дворец Потала') {
-      fireEvent.click(cluster());
-    }
-    // Сценарий тот, что нужен: обе пекинские звезды уже закрыты.
-    expect(screen.getByTestId('fill-progress')).toHaveTextContent('Закрашено 2 из 3');
-    fireEvent.click(cluster());
+    return ids.map((id) => all.find((one) => one.id === id)!);
+  }
+
+  function beijingCluster(container: HTMLElement): Element {
+    return [...container.querySelectorAll('.map-cluster')]
+      .find((one) => one.querySelector('[aria-label*="Запретный город"]'))!
+      .querySelector('[role="button"]')!;
+  }
+
+  /* Закрытый член грозди ответа не примет — промах пишется открытым. */
+  it('промах по грозди с закрытым членом пишется открытым и тратит попытку', () => {
+    const { container } = renderLandmarkRound(
+      // При сиде 5 порядок — Храм Неба, Потала, Запретный город.
+      pick(['temple-of-heaven', 'potala', 'forbidden-city']),
+      landmarksUpTo('all').map((one) => one.id),
+      5,
+    );
+
+    fireEvent.click(beijingCluster(container));
+    expect(screen.getByTestId('fill-target')).toHaveTextContent('Дворец Потала');
+    fireEvent.click(beijingCluster(container));
 
     expect(screen.getByText('Не это место. Осталось попыток: 2.')).toBeInTheDocument();
+  });
+
+  /*
+   * В повторе гроздь с закрытыми целями пула окрашена — и ответа больше не
+   * принимает, хотя в ней есть звёзды вне пула.
+   */
+  it('окрашенная гроздь в повторе ответа не принимает', () => {
+    const { container } = renderLandmarkRound(
+      // При сиде 1 порядок — Запретный город, Потала.
+      pick(['forbidden-city', 'potala']),
+      landmarksUpTo('all').map((one) => one.id),
+    );
+
+    fireEvent.click(beijingCluster(container));
+    expect(beijingCluster(container)).toHaveAttribute('aria-disabled', 'true');
+    fireEvent.click(beijingCluster(container));
+
+    expect(screen.getByText('Попытка 1 из 3')).toBeInTheDocument();
+    expect(screen.queryByText(/Не это место/)).toBeNull();
   });
 
   it('нажатие по грозди со спрошенным засчитывается', () => {

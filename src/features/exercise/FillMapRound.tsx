@@ -78,28 +78,39 @@ const WORDS: Readonly<Record<FillKind, KindWords>> = {
 };
 
 /**
- * Какой ответ записать по нажатию. Обычно — саму цель под пальцем. Гроздь
- * звёзд — одна цель: в ней спрошенный — засчитывается он, иначе промах
- * первым ещё открытым членом (закрытый ответа не принял бы, и промах по
- * грозди пропал бы). Участок реки засчитывается целой реке, когда спрошена
- * она: ущелья лежат на Янцзы (те же правила, что в `LandmarkRound` и
- * `PhysicalRound`).
+ * Какой ответ записать по нажатию; `null` — нажатие ничего не значит.
+ *
+ * Обычно ответ — сама цель под пальцем. Участок реки засчитывается целой
+ * реке, когда спрошена она (ущелья лежат на Янцзы), а участок, о котором
+ * раунд не спрашивает, вообще отвечает за свою реку: он и нарисован ею.
+ * Гроздь звёзд — одна цель: в ней спрошенный — засчитывается он, иначе
+ * промах пишется первой открытой целью раунда в ней. Если открытых целей в
+ * грозди нет, а закрытые есть, гроздь окрашена исходом и ответа не
+ * принимает — как одиночная закрытая цель (те же правила, что в
+ * `LandmarkRound` и `PhysicalRound`).
  */
 function resolveAnswer(
   kind: FillKind,
   pickedIds: readonly string[],
   targetId: string,
   isClosed: (id: string) => boolean,
-): string {
+  isTarget: (id: string) => boolean,
+): string | null {
   if (pickedIds.includes(targetId)) {
     return targetId;
   }
 
-  if (kind === 'physical' && partOfFeature(pickedIds[0]) === targetId) {
-    return targetId;
+  const whole = kind === 'physical' ? partOfFeature(pickedIds[0]) : undefined;
+  if (whole !== undefined && (whole === targetId || !isTarget(pickedIds[0]))) {
+    return isClosed(whole) ? null : whole;
   }
 
-  return pickedIds.find((id) => !isClosed(id)) ?? pickedIds[0];
+  const open = pickedIds.find((id) => isTarget(id) && !isClosed(id));
+  if (open !== undefined) {
+    return open;
+  }
+
+  return pickedIds.some(isClosed) ? null : pickedIds[0];
 }
 
 export type FillMapRoundProps = {
@@ -290,13 +301,19 @@ export function FillMapRound({
           pickedIds,
           currentTarget(round).targetId,
           (id) => round.outcomes[id] !== undefined,
+          (id) => targets.some((target) => target.id === id),
         );
     /*
      * Закрытая цель ответа не принимает: повторное нажатие не должно стоить
      * попытки. У регионов это держит ещё и правило карты, у прочих — только
      * этот обработчик.
      */
-    if (isRevealing || finished || round.outcomes[regionId] !== undefined) {
+    if (
+      isRevealing ||
+      finished ||
+      regionId === null ||
+      round.outcomes[regionId] !== undefined
+    ) {
       return;
     }
 

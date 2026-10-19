@@ -234,6 +234,8 @@ export function LandmarkLayer({
             hitRadius={TARGET_DIAMETER_UNITS / zoom / 2}
             selected={askedInside}
             outcome={outcome}
+            /* За раунд окрашенная гроздь закрыта: открытых целей в ней нет. */
+            disabled={outcomesAccumulate && outcome !== undefined}
             label={
               onSelect
                 ? withOutcome(`Достопримечательности рядом: ${names}`, outcome)
