@@ -1,5 +1,6 @@
 import {
   useEffect,
+  useMemo,
   useRef,
   useState,
   type PointerEvent as ReactPointerEvent,
@@ -13,6 +14,8 @@ import { CityLayer } from './CityLayer';
 import { LandmarkLayer, type LandmarkOutcome } from './LandmarkLayer';
 import type { FeatureOutcome } from './PhysicalLayer';
 import { cityPointsOfRegions } from './city-points';
+import { LANDMARK_POINTS } from './landmark-points';
+import type { MarkOutcome } from './mark-outcome';
 import type { MapCluster } from './cluster';
 import {
   clampView,
@@ -121,6 +124,17 @@ type ChinaMapProps = {
   readonly onSelectCity?: (cityId: string) => void;
   readonly showsCityLabels?: boolean;
   /**
+   * Какие города рисовать. Не задано — все города показанных регионов. Лёгкий
+   * уровень «Найти город» рисует только набор раунда.
+   */
+  readonly cityIds?: readonly string[];
+  /**
+   * Исходы по городам. Отдельное свойство, а не общее с регионами: у Пекина,
+   * Шанхая, Тяньцзиня и Чунцина город и регион носят один идентификатор, и
+   * исход города не должен красить область.
+   */
+  readonly cityOutcomes?: Readonly<Record<string, MarkOutcome>>;
+  /**
    * Показывать ли достопримечательности. По умолчанию — нет: в атласе 38
    * новых остановок Tab, где звезда ничего не делает, стоили бы дороже, чем
    * дают, — тот же довод, что и у городов.
@@ -135,6 +149,16 @@ type ChinaMapProps = {
   readonly showsLandmarkLabels?: boolean;
   /** Исход ответа по звёздам: верная — нефритом, ошибочная — киноварью. */
   readonly landmarkOutcomes?: Readonly<Record<string, LandmarkOutcome>>;
+  /** Исходы звёзд копятся за раунд — лёгкий уровень (см. `clusterOutcome`). */
+  readonly landmarkOutcomesAccumulate?: boolean;
+  /** Какие звёзды рисовать. Не задано — все; лёгкий уровень — набор раунда. */
+  readonly landmarkIds?: readonly string[];
+  /**
+   * Ещё открытые цели раунда лёгкого уровня: гроздь городов или звёзд получает
+   * исход, когда открытых в ней не осталось. В повторе члены грозди вне пула
+   * не открыты — их просто не спрашивают.
+   */
+  readonly pendingTargetIds?: readonly string[];
   /**
    * Слой сопредельных государств. Включается только в играх по странам: на всех
    * прочих поверхностях за границей Китая пусто, и так и должно остаться.
@@ -150,6 +174,8 @@ type ChinaMapProps = {
    */
   readonly frameOutset?: number;
   readonly countryStates?: Readonly<Record<string, AnswerState>>;
+  /** Исходы закрытых стран за раунд — лёгкий уровень. */
+  readonly countryOutcomes?: Readonly<Record<string, MarkOutcome>>;
   /**
    * Показывать ли выноски Макао и Гонконга. В раундах, где отвечают точкой
    * или звездой, регионы не выбираются, и два пустых кружка в море с
@@ -170,6 +196,8 @@ type ChinaMapProps = {
   readonly showsPhysicalLabels?: boolean;
   /** Исход ответа по объектам физической карты: помечается штриховкой и штрихом. */
   readonly featureOutcomes?: Readonly<Record<string, FeatureOutcome>>;
+  /** Исходы объектов копятся за раунд: участок реки не наследует исход реки. */
+  readonly featureOutcomesAccumulate?: boolean;
   /**
    * Врезка на листе карты: легенда, шкала — то, что объясняет саму карту.
    *
@@ -268,6 +296,7 @@ export function ChinaMap({
   countriesAnswer = true,
   frameOutset,
   countryStates = NO_ANSWER_STATES,
+  countryOutcomes,
   interactive = true,
   variant = 'reference',
   usage = 'browse',
@@ -280,21 +309,41 @@ export function ChinaMap({
   selectedCityId = null,
   onSelectCity,
   showsCityLabels = true,
+  cityIds,
+  cityOutcomes,
   showsLandmarks = false,
   selectedLandmarkId = null,
   onSelectLandmark,
   showsLandmarkLabels = true,
   landmarkOutcomes,
+  landmarkOutcomesAccumulate = false,
+  landmarkIds,
+  pendingTargetIds,
   showsCallouts = true,
   showsCalloutLabels,
   selectedFeatureId = null,
   onSelectFeature,
   showsPhysicalLabels = true,
   featureOutcomes = NO_FEATURE_OUTCOMES,
+  featureOutcomesAccumulate = false,
   mapInset,
   onOpenRegion,
 }: ChinaMapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
+  const cityPoints = useMemo(() => {
+    const points = cityPointsOfRegions(regions.map((region) => region.id));
+
+    return cityIds === undefined
+      ? points
+      : points.filter((point) => cityIds.includes(point.city.id));
+  }, [regions, cityIds]);
+  const landmarkPoints = useMemo(
+    () =>
+      landmarkIds === undefined
+        ? LANDMARK_POINTS
+        : LANDMARK_POINTS.filter((point) => landmarkIds.includes(point.landmark.id)),
+    [landmarkIds],
+  );
   /*
    * Разметка карты вставляется строкой, поэтому слой городов рисуется в неё
    * порталом: система координат и увеличение достаются ему от самой карты, а
@@ -985,7 +1034,9 @@ export function ChinaMap({
         {showsCities && citySvg !== null
           ? createPortal(
               <CityLayer
-                points={cityPointsOfRegions(regions.map((region) => region.id))}
+                points={cityPoints}
+                outcomes={cityOutcomes}
+                pendingIds={pendingTargetIds}
                 selectedCityId={selectedCityId}
                 onSelect={onSelectCity}
                 showsLabels={showsCityLabels}
@@ -1005,6 +1056,7 @@ export function ChinaMap({
                 onSelect={onSelectCountry}
                 answers={countriesAnswer}
                 answerStates={countryStates}
+                outcomes={countryOutcomes}
               />,
               citySvg,
             )
@@ -1016,6 +1068,9 @@ export function ChinaMap({
                 onSelect={onSelectLandmark}
                 showsLabels={showsLandmarkLabels}
                 outcomes={landmarkOutcomes}
+                outcomesAccumulate={landmarkOutcomesAccumulate}
+                pendingIds={pendingTargetIds}
+                points={landmarkPoints}
                 zoom={view.zoom}
               />,
               citySvg,
@@ -1035,6 +1090,7 @@ export function ChinaMap({
                 onSelect={onSelectFeature}
                 showsLabels={showsPhysicalLabels}
                 featureOutcomes={featureOutcomes}
+                outcomesAccumulate={featureOutcomesAccumulate}
                 zoom={view.zoom}
               />,
               citySvg,

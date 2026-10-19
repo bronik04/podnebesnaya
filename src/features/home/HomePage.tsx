@@ -40,20 +40,31 @@ import {
 } from '../exercise/exercise-modes';
 import { CollectionCard } from './CollectionCard';
 import { ModeStartDialog } from './ModeStartDialog';
+import type { Difficulty } from '../../domain/difficulty';
 import { nextStep } from './next-step';
 
 export type HomePageProps = {
   readonly regions: readonly Region[];
   readonly attempts: readonly Attempt[];
+  /**
+   * Уровень сложности, отмеченный в окне перед стартом: последний выбранный,
+   * его держит `App` до перезагрузки (решение владельца от 2026-10-18).
+   */
+  readonly difficulty: Difficulty;
+  /*
+   * Запуски получают уровень последним аргументом: у игр без уровней он не
+   * используется, а строка повтора передаёт запомненный.
+   */
   readonly onStartRound: (
     request: ExerciseType,
     language: QuestionLanguage,
     regionIds: readonly string[] | null,
+    level: Difficulty,
   ) => void;
-  readonly onStartFillRound: (language: QuestionLanguage) => void;
   readonly onStartCountryRound: (
     exerciseType: CountryExerciseType,
     language: QuestionLanguage,
+    level: Difficulty,
   ) => void;
   readonly onStartCultureRound: (
     language: QuestionLanguage,
@@ -68,16 +79,19 @@ export type HomePageProps = {
     exerciseType: 'find-on-map' | 'name-target',
     language: QuestionLanguage,
     set: PhysicalSet,
+    level: Difficulty,
   ) => void;
   readonly onStartCityRound: (
     exerciseType: ExerciseType,
     language: QuestionLanguage,
     citySet: CitySet,
+    level: Difficulty,
   ) => void;
   readonly onStartLandmarkRound: (
     exerciseType: ExerciseType,
     language: QuestionLanguage,
     set: LandmarkSet,
+    level: Difficulty,
   ) => void;
   readonly onOpenAtlas: () => void;
   /** Нажатие по области карты в герое: атлас открывается на этом регионе. */
@@ -200,8 +214,8 @@ function setChoiceFor(card: ModeCard) {
 export function HomePage({
   regions,
   attempts,
+  difficulty,
   onStartRound,
-  onStartFillRound,
   onStartCountryRound,
   onStartCityRound,
   onStartLandmarkRound,
@@ -225,20 +239,23 @@ export function HomePage({
    */
   const [startingCard, setStartingCard] = useState<ModeCard | null>(null);
 
-  function start(card: ModeCard, language: QuestionLanguage, set: string) {
+  function start(
+    card: ModeCard,
+    language: QuestionLanguage,
+    set: string,
+    level: Difficulty,
+  ) {
     setStartingCard(null);
     if (card.kind === 'exercise') {
-      onStartRound(card.exerciseType, language, null);
-    } else if (card.kind === 'fill') {
-      onStartFillRound(language);
+      onStartRound(card.exerciseType, language, null, level);
     } else if (card.kind === 'country') {
-      onStartCountryRound(card.exerciseType, language);
+      onStartCountryRound(card.exerciseType, language, level);
     } else if (card.kind === 'city') {
-      onStartCityRound(card.exerciseType, language, set as CitySet);
+      onStartCityRound(card.exerciseType, language, set as CitySet, level);
     } else if (card.kind === 'landmark') {
-      onStartLandmarkRound(card.exerciseType, language, set as LandmarkSet);
+      onStartLandmarkRound(card.exerciseType, language, set as LandmarkSet, level);
     } else if (card.kind === 'physical') {
-      onStartPhysicalRound(card.exerciseType, language, set as PhysicalSet);
+      onStartPhysicalRound(card.exerciseType, language, set as PhysicalSet, level);
     } else if (card.kind === 'history') {
       onStartHistoryRound(language, undefined, card.historyKind);
     } else if (card.kind === 'culture') {
@@ -392,7 +409,12 @@ export function HomePage({
               className="secondary"
               aria-describedby="repeat-title"
               onClick={() =>
-                onStartRound(step.exerciseType, step.language, step.regionIds)
+                onStartRound(
+                  step.exerciseType,
+                  step.language,
+                  step.regionIds,
+                  difficulty,
+                )
               }
             >
               Начать повтор
@@ -474,7 +496,21 @@ export function HomePage({
             volume={startingCard.volume}
             defaultLanguage={step.language}
             setChoice={setChoiceFor(startingCard)}
-            onStart={(language, set) => start(startingCard, language, set)}
+            levelChoice={
+              startingCard.levels === undefined
+                ? null
+                : { value: difficulty, ...startingCard.levels }
+            }
+            /* У игры без уровней окно выбора не показывает: уровень остаётся
+               запомненным, а не сбрасывается на лёгкий. */
+            onStart={(language, set, level) =>
+              start(
+                startingCard,
+                language,
+                set,
+                startingCard.levels === undefined ? difficulty : level,
+              )
+            }
             onClose={() => setStartingCard(null)}
           />
         )}

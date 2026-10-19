@@ -8,7 +8,7 @@ import {
   type FillRound,
 } from '../../domain/fill-round';
 import { createSeededRandom } from '../../domain/random';
-import { FillMapResultsPage } from './FillMapResultsPage';
+import { FillMapResultsPage, FillOutcomesMap } from './FillMapResultsPage';
 import { describe, it, expect, vi } from 'vitest';
 
 function finishedRound(): FillRound {
@@ -20,7 +20,7 @@ function finishedRound(): FillRound {
 
   for (let i = 0; i < regions.length; i += 1) {
     round = answerFillRound(round, {
-      answeredRegionId: currentTarget(round).regionId,
+      answeredId: currentTarget(round).targetId,
       durationMs: 1000,
       answeredAt: '2026-08-04T10:00:00.000Z',
     }).round;
@@ -37,17 +37,17 @@ function roundWithMistake(): FillRound {
     random: createSeededRandom(1),
   });
 
-  const asked = currentTarget(round).regionId;
+  const asked = currentTarget(round).targetId;
   const other = regions.find((region) => region.id !== asked)!.id;
   round = answerFillRound(round, {
-    answeredRegionId: other,
+    answeredId: other,
     durationMs: 1000,
     answeredAt: '2026-08-04T10:00:00.000Z',
   }).round;
 
   while (!isFillRoundFinished(round)) {
     round = answerFillRound(round, {
-      answeredRegionId: currentTarget(round).regionId,
+      answeredId: currentTarget(round).targetId,
       durationMs: 1000,
       answeredAt: '2026-08-04T10:00:00.000Z',
     }).round;
@@ -59,16 +59,22 @@ function roundWithMistake(): FillRound {
 type RenderOverrides = {
   readonly round?: FillRound;
   readonly onRepeatMistakes?: () => void;
+  readonly referenceOf?: (targetId: string) => (() => void) | null;
+  readonly withMap?: boolean;
 };
 
 function renderResults({
   round = finishedRound(),
   onRepeatMistakes = () => {},
+  referenceOf,
+  withMap = true,
 }: RenderOverrides = {}) {
   return render(
     <FillMapResultsPage
       round={round}
-      regions={regions}
+      targets={regions}
+      roundMap={withMap ? <FillOutcomesMap round={round} /> : undefined}
+      referenceOf={referenceOf}
       isProgressSaved
       onRepeatMistakes={onRepeatMistakes}
       onNewRound={() => {}}
@@ -140,5 +146,28 @@ describe('кнопка «Повторить ошибки»', () => {
     renderResults({ round: roundWithMistake() });
 
     expect(screen.queryByText(/за последние 14 дней/)).toBeNull();
+  });
+});
+
+describe('ссылки и карта', () => {
+  it('у ошибки есть «В справочник», если `referenceOf` её даёт', () => {
+    const open = vi.fn();
+    const round = roundWithMistake();
+    renderResults({ round, referenceOf: () => open });
+
+    const missed = regions.find(
+      (region) => region.id === round.order[0].targetId,
+    )!;
+    fireEvent.click(
+      screen.getByRole('button', { name: `В справочник — ${missed.nameRu}` }),
+    );
+
+    expect(open).toHaveBeenCalledTimes(1);
+  });
+
+  it('без `roundMap` карты на итогах нет', () => {
+    const { container } = renderResults({ withMap: false });
+
+    expect(container.querySelector('[data-map-variant="fill"]')).toBeNull();
   });
 });

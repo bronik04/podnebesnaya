@@ -269,7 +269,7 @@ export function CollectionPage({
                 </button>
                 <p className="status-note">
                   {memberRegions.length} {regionsWord(memberRegions.length)} ·
-                  игра «найти на карте»
+                  игра «найти регион»
                 </p>
               </>
             )}

@@ -1,5 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { expect, it, vi } from 'vitest';
+import { regions } from '../content/regions';
+import { ChinaMap } from './ChinaMap';
 import { LandmarkLayer } from './LandmarkLayer';
 import { LANDMARK_POINTS } from './landmark-points';
 
@@ -160,4 +162,73 @@ it('гроздь берёт исход своего члена', () => {
     .getByRole('button', { name: /Достопримечательности рядом: Запретный город/ })
     .closest('.map-cluster');
   expect(cluster).toHaveAttribute('data-outcome', 'correct');
+});
+
+it('ставит звезде исход «со второй попытки» и называет его', () => {
+  const point = LANDMARK_POINTS.find((one) => one.landmark.id === 'potala')!;
+  const { container } = renderLayer({
+    points: [point],
+    onSelect: () => {},
+    outcomes: { potala: 'second-try' },
+  });
+
+  expect(container.querySelector('[data-landmark-id="potala"].landmark')).toHaveAttribute(
+    'data-outcome',
+    'second-try',
+  );
+  expect(
+    screen.getByRole('button', { name: 'Дворец Потала, 布达拉宫 — верно со второй попытки' }),
+  ).toBeInTheDocument();
+});
+
+it('рисует только звёзды из `landmarkIds`', () => {
+  const { container } = render(
+    <ChinaMap
+      regions={regions}
+      selectedRegionId={null}
+      onSelect={() => {}}
+      onClear={() => {}}
+      showsLandmarks
+      landmarkIds={['potala']}
+    />,
+  );
+
+  expect(
+    [...container.querySelectorAll('.landmark')].map((one) =>
+      one.getAttribute('data-landmark-id'),
+    ),
+  ).toEqual(['potala']);
+});
+
+it('гроздь за раунд получает исход, только когда закрыты все её члены', () => {
+  const { container, rerender } = renderLayer({
+    onSelect: () => {},
+    outcomes: { 'forbidden-city': 'correct' },
+    outcomesAccumulate: true,
+  });
+  const cluster = () =>
+    [...container.querySelectorAll('.map-cluster')].find((one) =>
+      one.querySelector('[aria-label*="Запретный город"]'),
+    )!;
+  expect(cluster()).not.toHaveAttribute('data-outcome');
+
+  const members = cluster()
+    .querySelector('[role="button"]')!
+    .getAttribute('aria-label')!
+    .replace('Достопримечательности рядом: ', '')
+    .split(', ')
+    .map((name) => LANDMARK_POINTS.find((one) => one.landmark.nameRu === name)!.landmark.id);
+  rerender(
+    <svg>
+      <LandmarkLayer
+        onSelect={() => {}}
+        outcomesAccumulate
+        outcomes={Object.fromEntries(
+          members.map((id, index) => [id, index === 0 ? 'second-try' : 'correct']),
+        )}
+      />
+    </svg>,
+  );
+
+  expect(cluster()).toHaveAttribute('data-outcome', 'second-try');
 });

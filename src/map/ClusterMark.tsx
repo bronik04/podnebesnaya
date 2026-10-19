@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import type { MapCluster } from './cluster';
+import type { MarkOutcome } from './mark-outcome';
 
 /**
  * Свёрнутая гроздь на карте: знак своего слоя и кружок с числом.
@@ -29,7 +30,9 @@ export type ClusterMarkProps = {
    */
   readonly selected: boolean;
   /** Исход ответа по грозди — её знак красится так же, как одиночный. */
-  readonly outcome?: 'correct' | 'incorrect';
+  readonly outcome?: MarkOutcome;
+  /** Гроздь своё отыграла: нажатие по ней ничего не делает. */
+  readonly disabled?: boolean;
   /** Знак свёрнутой грозди — рисуется в её середине. */
   readonly mark: ReactNode;
   readonly onActivate?: () => void;
@@ -53,6 +56,7 @@ export function ClusterMark({
   hitRadius,
   selected,
   outcome,
+  disabled = false,
   mark,
   onActivate,
 }: ClusterMarkProps) {
@@ -97,6 +101,7 @@ export function ClusterMark({
         role={label === undefined ? undefined : 'button'}
         aria-label={label}
         aria-hidden={label === undefined ? 'true' : undefined}
+        aria-disabled={label !== undefined && disabled ? true : undefined}
         tabIndex={label === undefined ? -1 : 0}
         onClick={label === undefined ? undefined : onActivate}
         onKeyDown={

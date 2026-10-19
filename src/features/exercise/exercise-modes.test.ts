@@ -31,7 +31,7 @@ it('описания игр физической карты называют к�
 
 /* Имя игры в шапке раунда берётся из карточки и её темы, а не пишется заново. */
 it('имя игры над ходом раунда — тема и карточка', () => {
-  expect(roundTitle('find-on-map')).toBe('Регионы · Найти на карте');
+  expect(roundTitle('find-on-map')).toBe('Регионы · Найти регион');
   expect(roundTitle('history-order')).toBe('История · Расставить по порядку');
   expect(roundTitle('нет-такой')).toBe('');
 });
@@ -46,4 +46,19 @@ it('у каждой формы вопроса городов, мест и ист
   ]) {
     expect(ids).toContain(id);
   }
+});
+
+/*
+ * «Найти на карте» и «Заполнить карту» — одна игра на разной сложности
+ * (решение владельца от 2026-10-18): карточка одна, уровень — в окне.
+ */
+it('карточки «Заполнить карту» нет, а «Найти на карте» называется «Найти регион»', () => {
+  expect(MODE_CARDS.some((card) => card.id === 'fill-map')).toBe(false);
+  expect(MODE_CARDS.find((card) => card.id === 'find-on-map')?.title).toBe('Найти регион');
+});
+
+it('уровни есть ровно у пяти игр «Найти…»', () => {
+  expect(
+    MODE_CARDS.filter((card) => card.levels !== undefined).map((card) => card.id),
+  ).toEqual(['find-on-map', 'find-country', 'find-city', 'find-physical', 'find-landmark']);
 });

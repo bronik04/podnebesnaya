@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { TARGET_DIAMETER_UNITS } from './city-hit-targets';
 import { clusterPlaceables } from './cluster';
 import { ClusterMark } from './ClusterMark';
+import { clusterOutcome, withOutcome, type MarkOutcome } from './mark-outcome';
 import { LANDMARK_POINTS, type LandmarkPoint } from './landmark-points';
 import { MAP_VIEWBOX_MIN_X, MAP_VIEWBOX_WIDTH } from './target-size';
 
@@ -22,9 +23,16 @@ export type LandmarkLayerProps = {
    * Считает его раунд, а не карта: карта не знает, что верно.
    */
   readonly outcomes?: Readonly<Record<string, LandmarkOutcome>>;
+  /**
+   * Исходы копятся за раунд (лёгкий уровень), а не стоят за один ответ: гроздь
+   * получает исход, только когда закрыты все её члены (`clusterOutcome`).
+   */
+  readonly outcomesAccumulate?: boolean;
+  /** Ещё открытые цели раунда — для исхода грозди (`clusterOutcome`). */
+  readonly pendingIds?: readonly string[];
 };
 
-export type LandmarkOutcome = 'correct' | 'incorrect';
+export type LandmarkOutcome = MarkOutcome;
 
 const NO_OUTCOMES: Readonly<Record<string, LandmarkOutcome>> = {};
 
@@ -76,6 +84,8 @@ export function LandmarkLayer({
   showsLabels = true,
   zoom = 1,
   outcomes = NO_OUTCOMES,
+  outcomesAccumulate = false,
+  pendingIds,
 }: LandmarkLayerProps) {
   /*
    * Гроздь нужна там, где есть что объединять: цель нажатия или подсвеченный
@@ -110,7 +120,7 @@ export function LandmarkLayer({
     const landmark = (pointById.get(id) as LandmarkPoint).landmark;
     const selected = landmark.id === selectedLandmarkId;
     const outcome = outcomes[landmark.id];
-    const label = `${landmark.nameRu}, ${landmark.nameZh}`;
+    const label = withOutcome(`${landmark.nameRu}, ${landmark.nameZh}`, outcome);
     /* Звезда с исходом крупнее, как спрошенная: её ищут глазами по всей карте. */
     const markRadius =
       selected || outcome !== undefined ? SELECTED_MARK_RADIUS : MARK_RADIUS;
@@ -155,6 +165,7 @@ export function LandmarkLayer({
           role={onSelect ? 'button' : undefined}
           aria-label={onSelect ? label : undefined}
           aria-hidden={onSelect ? undefined : 'true'}
+          aria-disabled={onSelect && outcome !== undefined ? true : undefined}
           tabIndex={onSelect ? 0 : -1}
           onPointerEnter={() => setActiveLandmarkId(landmark.id)}
           onPointerLeave={() =>
@@ -202,16 +213,14 @@ export function LandmarkLayer({
         const askedInside = cluster.members.some(
           (member) => member.id === selectedLandmarkId,
         );
-        /*
-         * Гроздь — одна цель, и исход у неё один: верный, если в ней верный
-         * ответ, иначе ошибочный, если в неё промахнулись.
-         */
-        const memberOutcomes = cluster.members.map((member) => outcomes[member.id]);
-        const outcome = memberOutcomes.includes('correct')
-          ? 'correct'
-          : memberOutcomes.includes('incorrect')
-            ? 'incorrect'
-            : undefined;
+        /* Гроздь — одна цель, и исход у неё один (`clusterOutcome`). */
+        const outcome = clusterOutcome(
+          cluster.members.map((member) => outcomes[member.id]),
+          outcomesAccumulate,
+          pendingIds === undefined
+            ? undefined
+            : cluster.members.map((member) => pendingIds.includes(member.id)),
+        );
         const names = cluster.members
           .map(
             (member) => (pointById.get(member.id) as LandmarkPoint).landmark.nameRu,
@@ -225,8 +234,12 @@ export function LandmarkLayer({
             hitRadius={TARGET_DIAMETER_UNITS / zoom / 2}
             selected={askedInside}
             outcome={outcome}
+            /* За раунд окрашенная гроздь закрыта: открытых целей в ней нет. */
+            disabled={outcomesAccumulate && outcome !== undefined}
             label={
-              onSelect ? `Достопримечательности рядом: ${names}` : undefined
+              onSelect
+                ? withOutcome(`Достопримечательности рядом: ${names}`, outcome)
+                : undefined
             }
             mark={
               <polygon

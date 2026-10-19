@@ -4,6 +4,7 @@ import { TARGET_DIAMETER_UNITS } from './city-hit-targets';
 import { CITY_POINTS, type CityPoint } from './city-points';
 import { clusterPlaceables, type MapCluster } from './cluster';
 import { ClusterMark } from './ClusterMark';
+import { clusterOutcome, withOutcome, type MarkOutcome } from './mark-outcome';
 import { MAP_VIEWBOX_MIN_X, MAP_VIEWBOX_WIDTH } from './target-size';
 
 export type CityLayerProps = {
@@ -35,7 +36,17 @@ export type CityLayerProps = {
    * середины вида. Не задано — гроздь не отвечает на нажатие.
    */
   readonly onZoomToCluster?: (cluster: MapCluster) => void;
+  /**
+   * Исход ответа по городам. Гроздь получает исход, только когда закрыты все
+   * её члены: она приближает карту, а не отвечает, и за один ответ под ней
+   * исхода не видно — ученик в этот миг смотрит на карту вблизи.
+   */
+  readonly outcomes?: Readonly<Record<string, MarkOutcome>>;
+  /** Ещё открытые цели раунда — для исхода грозди (`clusterOutcome`). */
+  readonly pendingIds?: readonly string[];
 };
+
+const NO_OUTCOMES: Readonly<Record<string, MarkOutcome>> = {};
 
 /**
  * Радиус знака: город виден, но не спорит с границей региона.
@@ -94,6 +105,8 @@ export function CityLayer({
   showsLabels = true,
   zoom = 1,
   onZoomToCluster,
+  outcomes = NO_OUTCOMES,
+  pendingIds,
 }: CityLayerProps) {
   /*
    * Гроздь нужна там, где есть что разделять: цель нажатия или подсвеченный
@@ -166,7 +179,8 @@ export function CityLayer({
 
   function cityMark(cityId: string, x: number, y: number) {
     const city = (pointById.get(cityId) as CityPoint).city;
-    const label = `${city.nameRu}, ${city.nameZh}`;
+    const outcome = outcomes[city.id];
+    const label = withOutcome(`${city.nameRu}, ${city.nameZh}`, outcome);
     /*
      * Цель нажатия не меньше знака: на сильном увеличении 24 px экрана — это
      * меньше единиц карты, чем занимает сам кружок, и без нижней границы
@@ -183,6 +197,7 @@ export function CityLayer({
         data-city-id={city.id}
         data-city-set={city.set}
         data-selected={city.id === selectedCityId}
+        data-outcome={outcome}
       >
         <circle
           className="city-mark"
@@ -213,6 +228,7 @@ export function CityLayer({
           role={onSelect ? 'button' : undefined}
           aria-label={onSelect ? label : undefined}
           aria-hidden={onSelect ? undefined : 'true'}
+          aria-disabled={onSelect && outcome !== undefined ? true : undefined}
           tabIndex={onSelect ? 0 : -1}
           onPointerEnter={() => setActiveCityId(city.id)}
           onPointerLeave={() =>
@@ -267,6 +283,13 @@ export function CityLayer({
             cluster={cluster}
             hitRadius={TARGET_DIAMETER_UNITS / zoom / 2}
             selected={cluster === askedCluster}
+            outcome={clusterOutcome(
+              cluster.members.map((member) => outcomes[member.id]),
+              true,
+              pendingIds === undefined
+                ? undefined
+                : cluster.members.map((member) => pendingIds.includes(member.id)),
+            )}
             label={
               onZoomToCluster
                 ? `Города рядом: ${names} — приблизить карту`

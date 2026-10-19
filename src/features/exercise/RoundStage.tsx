@@ -4,7 +4,7 @@ import { useFullscreen } from '../../ui/use-fullscreen';
 
 export type RoundStageProps = {
   /**
-   * Имя игры над ходом раунда: «Регионы · Найти на карте». Не передано —
+   * Имя игры над ходом раунда: «Регионы · Найти регион». Не передано —
    * строки нет.
    */
   readonly title?: string;

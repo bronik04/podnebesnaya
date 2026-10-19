@@ -1,7 +1,6 @@
-import type { Region } from '../content/types';
 import { shuffle } from './random';
 import type { QuestionLanguage } from './question-language';
-import { regionTarget, type Attempt } from './round';
+import type { Attempt, TargetKind } from './round';
 
 /**
  * Раунд-заполнение карты: каждый регион остаётся в игре, пока не закрыт, и
@@ -19,12 +18,14 @@ export type RegionOutcome = 'first-try' | 'second-try' | 'failed';
 export type FillQuestion = {
   readonly id: string;
   readonly roundId: string;
-  readonly regionId: string;
+  readonly targetId: string;
   readonly language: QuestionLanguage;
 };
 
 export type FillRound = {
   readonly roundId: string;
+  /** Вид целей раунда: им помечается каждая попытка. */
+  readonly targetKind: TargetKind;
   readonly language: QuestionLanguage;
   readonly order: readonly FillQuestion[];
   readonly currentIndex: number;
@@ -48,7 +49,7 @@ export type Move =
     };
 
 export type FillAnswerInput = {
-  readonly answeredRegionId: string;
+  readonly answeredId: string;
   /** Время на регион целиком, со всеми попытками. */
   readonly durationMs: number;
   readonly answeredAt: string;
@@ -58,6 +59,11 @@ export type FillRoundOptions = {
   readonly roundId: string;
   readonly language: QuestionLanguage;
   readonly random: () => number;
+  /**
+   * Вид целей: регионы, страны, города, объекты, места. Не задан — регионы,
+   * как в прежней «Заполнить карту».
+   */
+  readonly targetKind?: TargetKind;
 };
 
 export type FillSummary = {
@@ -66,26 +72,27 @@ export type FillSummary = {
   readonly secondTry: number;
   readonly failed: number;
   readonly durationMs: number;
-  readonly regionIdsToReview: readonly string[];
+  readonly idsToReview: readonly string[];
 };
 
 export function createFillRound(
-  regions: readonly Region[],
+  targets: readonly { readonly id: string }[],
   options: FillRoundOptions,
 ): FillRound {
-  if (regions.length === 0) {
-    throw new Error('Раунд не создан: нет регионов');
+  if (targets.length === 0) {
+    throw new Error('Раунд не создан: нет целей');
   }
 
-  const order = shuffle(regions, options.random).map((region, index) => ({
-    id: `${index + 1}-${region.id}`,
+  const order = shuffle(targets, options.random).map((target, index) => ({
+    id: `${index + 1}-${target.id}`,
     roundId: options.roundId,
-    regionId: region.id,
+    targetId: target.id,
     language: options.language,
   }));
 
   return {
     roundId: options.roundId,
+    targetKind: options.targetKind ?? 'region',
     language: options.language,
     order,
     currentIndex: 0,
@@ -125,7 +132,7 @@ export function answerFillRound(
   }
 
   const question = currentTarget(round);
-  const isCorrect = input.answeredRegionId === question.regionId;
+  const isCorrect = input.answeredId === question.targetId;
   const isLastAttempt = round.usedAttempts >= MAX_ATTEMPTS_PER_REGION - 1;
 
   // Промах, пока попытки есть: регион остаётся открытым, попытка списывается
@@ -145,7 +152,7 @@ export function answerFillRound(
   const attempt: Attempt = {
     questionId: question.id,
     roundId: question.roundId,
-    target: regionTarget(question.regionId),
+    target: { kind: round.targetKind, id: question.targetId },
     exerciseType: 'find-on-map',
     language: question.language,
     // «Освоил» значит «берёт с первой». Ответ со второй попадает в повтор.
@@ -159,7 +166,7 @@ export function answerFillRound(
       ...round,
       currentIndex: round.currentIndex + 1,
       usedAttempts: 0,
-      outcomes: { ...round.outcomes, [question.regionId]: outcome },
+      outcomes: { ...round.outcomes, [question.targetId]: outcome },
       attempts: [...round.attempts, attempt],
     },
     move: { kind: 'closed', outcome, wasFound: isCorrect },
@@ -186,10 +193,10 @@ export function summariseFillRound(round: FillRound): FillSummary {
      * иначе два экрана итогов в одном приложении вели бы себя по-разному, а
      * на слабом раунде список вытолкнул бы кнопки далеко за экран.
      */
-    regionIdsToReview: round.order
-      .map((question) => question.regionId)
-      .filter((regionId) => {
-        const outcome = round.outcomes[regionId];
+    idsToReview: round.order
+      .map((question) => question.targetId)
+      .filter((targetId) => {
+        const outcome = round.outcomes[targetId];
 
         return outcome !== undefined && outcome !== 'first-try';
       }),

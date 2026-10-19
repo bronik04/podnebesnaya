@@ -18,6 +18,7 @@ import {
   MAP_VIEWBOX_WIDTH,
 } from './target-size';
 import { RIVER_SHAPES } from './river-hit';
+import { withOutcome, type MarkOutcome } from './mark-outcome';
 
 /**
  * Физическая карта: заливка по ступеням рельефа и шесть рек поверх.
@@ -145,7 +146,7 @@ const MASK_ID = 'china-land-mask';
 const NO_OUTCOMES: Readonly<Record<string, FeatureOutcome>> = {};
 
 /** Чем кончился ответ по объекту. */
-export type FeatureOutcome = 'correct' | 'incorrect';
+export type FeatureOutcome = MarkOutcome;
 
 export type PhysicalLayerProps = {
   readonly selectedFeatureId?: string | null;
@@ -185,6 +186,12 @@ export type PhysicalLayerProps = {
    * помечать нечего.
    */
   readonly featureOutcomes?: Readonly<Record<string, FeatureOutcome>>;
+  /**
+   * Исходы копятся за раунд (лёгкий уровень): участок реки не берёт исход
+   * целой реки — он сам может быть ещё не спрошенной целью. Что ему
+   * унаследовать, решает раунд.
+   */
+  readonly outcomesAccumulate?: boolean;
 };
 
 export function PhysicalLayer({
@@ -193,6 +200,7 @@ export function PhysicalLayer({
   onSelect,
   showsLabels = true,
   featureOutcomes = NO_OUTCOMES,
+  outcomesAccumulate = false,
   zoom = 1,
 }: PhysicalLayerProps) {
   /*
@@ -299,9 +307,21 @@ export function PhysicalLayer({
                 isTarget ? featureOutcomes[shape.featureId!] : undefined
               }
               role={answers ? 'button' : undefined}
-              aria-label={isTarget ? NAME_OF.get(shape.featureId!) : undefined}
+              aria-label={
+                isTarget
+                  ? withOutcome(
+                      NAME_OF.get(shape.featureId!) ?? shape.featureId!,
+                      featureOutcomes[shape.featureId!],
+                    )
+                  : undefined
+              }
               aria-hidden={isTarget ? undefined : 'true'}
               tabIndex={answers ? 0 : -1}
+              aria-disabled={
+                answers && featureOutcomes[shape.featureId!] !== undefined
+                  ? true
+                  : undefined
+              }
               onFocus={answers ? () => setHoveredNodeId(shape.featureId!) : undefined}
               onBlur={answers ? () => setHoveredNodeId(null) : undefined}
               onKeyDown={
@@ -375,7 +395,9 @@ export function PhysicalLayer({
           const hoveredLine = line.featureId === hovered || whole === hovered;
           const outcome =
             featureOutcomes[line.featureId] ??
-            (whole === undefined ? undefined : featureOutcomes[whole]);
+            (whole === undefined || outcomesAccumulate
+              ? undefined
+              : featureOutcomes[whole]);
 
           return (
             <g key={line.featureId} className="river">
@@ -387,8 +409,9 @@ export function PhysicalLayer({
                 data-hovered={hoveredLine}
                 data-outcome={outcome}
                 role={onSelect ? 'button' : undefined}
-                aria-label={label}
+                aria-label={withOutcome(label, outcome)}
                 tabIndex={onSelect ? 0 : -1}
+                aria-disabled={onSelect && outcome !== undefined ? true : undefined}
                 onFocus={onSelect ? () => setHoveredNodeId(line.featureId) : undefined}
                 onBlur={onSelect ? () => setHoveredNodeId(null) : undefined}
                 onKeyDown={
@@ -416,7 +439,10 @@ export function PhysicalLayer({
       <g className="lakes" mask={`url(#${MASK_ID})`}>
         {lakeMarks(zoom).map((mark) => {
           const shape = LAKE_SHAPES.find((item) => item.featureId === mark.featureId)!;
-          const label = NAME_OF.get(mark.featureId) ?? mark.featureId;
+          const label = withOutcome(
+            NAME_OF.get(mark.featureId) ?? mark.featureId,
+            featureOutcomes[mark.featureId],
+          );
           const answers = onSelect !== undefined;
 
           /*
@@ -460,6 +486,11 @@ export function PhysicalLayer({
                 role={answers ? 'button' : undefined}
                 aria-label={label}
                 tabIndex={answers ? 0 : -1}
+                aria-disabled={
+                  answers && featureOutcomes[mark.featureId] !== undefined
+                    ? true
+                    : undefined
+                }
                 onFocus={answers ? () => setHoveredNodeId(mark.featureId) : undefined}
                 onBlur={answers ? () => setHoveredNodeId(null) : undefined}
                 onKeyDown={
@@ -496,7 +527,10 @@ export function PhysicalLayer({
       */}
       <g className="seas">
         {MARINE_SHAPES.map((shape) => {
-          const label = NAME_OF.get(shape.featureId) ?? shape.featureId;
+          const label = withOutcome(
+            NAME_OF.get(shape.featureId) ?? shape.featureId,
+            featureOutcomes[shape.featureId],
+          );
           const answers = onSelect !== undefined;
 
           return (
@@ -512,6 +546,11 @@ export function PhysicalLayer({
               aria-label={answers ? label : undefined}
               aria-hidden={answers ? undefined : 'true'}
               tabIndex={answers ? 0 : -1}
+              aria-disabled={
+                answers && featureOutcomes[shape.featureId] !== undefined
+                  ? true
+                  : undefined
+              }
               onFocus={answers ? () => setHoveredNodeId(shape.featureId) : undefined}
               onBlur={answers ? () => setHoveredNodeId(null) : undefined}
               onKeyDown={
@@ -542,7 +581,10 @@ export function PhysicalLayer({
       */}
       <g className="points">
         {pointMarks(zoom).map((mark) => {
-          const label = NAME_OF.get(mark.featureId) ?? mark.featureId;
+          const label = withOutcome(
+            NAME_OF.get(mark.featureId) ?? mark.featureId,
+            featureOutcomes[mark.featureId],
+          );
           const answers = onSelect !== undefined;
           const up = POINT_KIND_OF.get(mark.featureId) === 'peak';
 
@@ -563,6 +605,11 @@ export function PhysicalLayer({
                 role={answers ? 'button' : undefined}
                 aria-label={label}
                 tabIndex={answers ? 0 : -1}
+                aria-disabled={
+                  answers && featureOutcomes[mark.featureId] !== undefined
+                    ? true
+                    : undefined
+                }
                 onFocus={answers ? () => setHoveredNodeId(mark.featureId) : undefined}
                 onBlur={answers ? () => setHoveredNodeId(null) : undefined}
                 onKeyDown={

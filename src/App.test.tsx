@@ -9,7 +9,7 @@ import {
 import { MISS_FLASH_MS } from './features/exercise/FillMapRound';
 import { afterEach, beforeEach } from 'vitest';
 import App from './App';
-import { cityById } from './content/cities';
+import { cityById, citiesUpTo } from './content/cities';
 import { countries } from './content/countries';
 import { regions } from './content/regions';
 import type { Region } from './content/types';
@@ -79,9 +79,11 @@ async function settle(): Promise<void> {
 /*
  * Раунд начинается карточкой режима и окном перед стартом: в герое кнопки
  * запуска больше нет — главный шаг ведёт к выбору, а не запускает игру сам.
+ * «Найти регион» на сложном уровне — прежняя «Найти на карте».
  */
 function startFindOnMap(): void {
-  fireEvent.click(screen.getByRole('button', { name: /Найти на карте/ }));
+  fireEvent.click(screen.getByRole('button', { name: /Найти регион/ }));
+  fireEvent.click(screen.getByRole('radio', { name: /Сложный/ }));
   fireEvent.click(screen.getByRole('button', { name: 'Начать' }));
 }
 
@@ -187,7 +189,8 @@ it('коллекция запускает раунд ровно по своим 
   fireEvent.click(screen.getByRole('button', { name: 'Спросить эти регионы' }));
   await settle();
 
-  expect(screen.getByText(/Вопрос 1 из 9/)).toBeInTheDocument();
+  // Уровень по умолчанию — лёгкий: заполнение карты по девяти регионам.
+  expect(screen.getByText(/Закрашено 0 из 9/)).toBeInTheDocument();
 });
 
 it('атлас держит выбор региона в состоянии приложения', async () => {
@@ -373,10 +376,9 @@ it('все написанные игры открыты сразу, без вс�
   render(<App />);
 
   for (const name of [
-    /Найти на карте/,
+    /Найти регион/,
     /Назвать регион/,
     /Регион — столица/,
-    /Заполнить карту/,
     /Династии и даты/,
     /Узнать по фотографии/,
   ]) {
@@ -388,12 +390,13 @@ it('запускает раунд по физической географии �
   render(<App />);
 
   fireEvent.click(screen.getByRole('button', { name: /Найти объект/ }));
-  // Точное имя, а не «начинается с»: в герое стоит «Начать: найти на карте».
+  // Точное имя, а не «начинается с»: в герое стоит «Начать: найти регион».
   fireEvent.click(screen.getByRole('button', { name: 'Начать' }));
   await settle();
 
-  // Без выбора берётся первый набор — реки, их участки, канал и формы.
-  expect(screen.getByText(/Вопрос 1 из 21/)).toBeInTheDocument();
+  // Без выбора берётся первый набор — реки, их участки, канал и формы — и
+  // лёгкий уровень: заполнение карты.
+  expect(screen.getByText(/Закрашено 0 из 21/)).toBeInTheDocument();
 });
 
 it('набор перед стартом задаёт длину физического раунда', async () => {
@@ -404,7 +407,7 @@ it('набор перед стартом задаёт длину физичес�
   fireEvent.click(screen.getByRole('button', { name: 'Начать' }));
   await settle();
 
-  expect(screen.getByText(/Вопрос 1 из 41/)).toBeInTheDocument();
+  expect(screen.getByText(/Закрашено 0 из 41/)).toBeInTheDocument();
 });
 
 /** В заполнении по-русски спрошенный регион назван в плашке `fill-target`. */
@@ -455,9 +458,10 @@ it('раунд по истории доходит до итога и счита�
   expect(document.body.textContent).not.toContain('12 регионов');
 }, 20_000);
 
-it('итог заполнения ведёт в раунд по ошибочным регионам', async () => {
+it('итог лёгкого «Найти регион» повторяет ошибки тем же уровнем', async () => {
   render(<App />);
-  fireEvent.click(screen.getByRole('button', { name: /Заполнить карту/ }));
+  // Лёгкий уровень «Найти регион» — прежняя «Заполнить карту»; он по умолчанию.
+  fireEvent.click(screen.getByRole('button', { name: /Найти регион/ }));
   fireEvent.click(screen.getByRole('button', { name: 'Начать' }));
   await settle();
 
@@ -485,12 +489,112 @@ it('итог заполнения ведёт в раунд по ошибочны
   );
   await settle();
 
-  expect(screen.getByText(/Вопрос 1 из 1/)).toBeInTheDocument();
+  // Повтор — снова заполнение, а не раунд «по одному вопросу на чистой карте».
+  expect(screen.getByTestId('fill-target')).toBeInTheDocument();
+  expect(screen.getByText(/Закрашено 0 из 1/)).toBeInTheDocument();
+}, 20_000);
+
+/* Входы мимо окна перед стартом берут уровень, выбранный в последний раз. */
+it('«Тренировать» в атласе запускает запомненный уровень', async () => {
+  render(<App />);
+
+  startFindOnMap();
+  await settle();
+
+  const nav = screen.getByRole('navigation', { name: 'Разделы сайта' });
+  fireEvent.click(within(nav).getByRole('button', { name: 'Атлас' }));
+  fireEvent.click(
+    within(screen.getByRole('dialog')).getByRole('button', { name: 'Перейти' }),
+  );
+  await settle();
+  fireEvent.click(screen.getByRole('button', { name: 'Проверить себя на карте' }));
+  await settle();
+
+  expect(screen.getByText(/Вопрос 1 из 34/)).toBeInTheDocument();
+  expect(screen.queryByTestId('fill-target')).toBeNull();
+});
+
+it('«Новый раунд» по городам берёт тот же набор', async () => {
+  render(<App />);
+  fireEvent.click(screen.getByRole('button', { name: /Назвать город/ }));
+  fireEvent.click(screen.getByRole('radio', { name: /И значимые города/ }));
+  fireEvent.click(screen.getByRole('button', { name: 'Начать' }));
+  await settle();
+
+  const total = citiesUpTo('notable').length;
+  expect(screen.getByText(new RegExp(`Вопрос 1 из ${total}`))).toBeInTheDocument();
+
+  vi.useFakeTimers();
+  try {
+    for (let index = 0; index < total; index += 1) {
+      fireEvent.click(screen.getAllByTestId('choice-option')[0]);
+      passFeedback();
+    }
+  } finally {
+    vi.useRealTimers();
+  }
+  await settle();
+
+  fireEvent.click(screen.getByRole('button', { name: 'Новый раунд' }));
+  await settle();
+
+  expect(screen.getByText(new RegExp(`Вопрос 1 из ${total}`))).toBeInTheDocument();
+}, 30_000);
+
+it('итог лёгкого уровня по странам — без карты, со списком ошибок', async () => {
+  render(<App />);
+  fireEvent.click(screen.getByRole('button', { name: /Найти страну/ }));
+  fireEvent.click(screen.getByRole('button', { name: 'Начать' }));
+  await settle();
+
+  const countryName = new RegExp(
+    `^(${countries.map((country) => country.nameRu).join('|')}), `,
+  );
+  await screen.findAllByRole('button', { name: countryName }, { timeout: 5000 });
+  const asked = () =>
+    countries.find(
+      (country) => country.nameRu === screen.getByTestId('fill-target').textContent,
+    )!;
+  const click = (country: (typeof countries)[number]) =>
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: new RegExp(`^${country.nameRu}, ${country.nameZh}`),
+      }),
+    );
+
+  vi.useFakeTimers();
+  try {
+    // Первая страна — со второй попытки: одна ошибка уходит в список.
+    const first = asked();
+    click(countries.find((country) => country.id !== first.id)!);
+    act(() => {
+      vi.advanceTimersByTime(MISS_FLASH_MS);
+    });
+    click(first);
+
+    for (let index = 1; index < countries.length; index += 1) {
+      click(asked());
+    }
+  } finally {
+    vi.useRealTimers();
+  }
+  await settle();
+
+  expect(document.querySelector('.results-map')).toBeNull();
+  expect(
+    screen.getAllByRole('listitem').filter((item) =>
+      item.textContent?.includes('со второго раза'),
+    ),
+  ).toHaveLength(1);
+  expect(
+    screen.getByRole('button', { name: 'Повторить ошибки: 1 страна' }),
+  ).toBeInTheDocument();
 }, 20_000);
 
 it('итог игры про страны считает страны, а не регионы', async () => {
   render(<App />);
   fireEvent.click(screen.getByRole('button', { name: /Найти страну/ }));
+  fireEvent.click(screen.getByRole('radio', { name: /Сложный/ }));
   fireEvent.click(screen.getByRole('button', { name: 'Начать' }));
   await settle();
 
@@ -498,7 +602,7 @@ it('итог игры про страны считает страны, а не �
   const countryName = new RegExp(
     `^(${countries.map((country) => country.nameRu).join('|')}), `,
   );
-  await screen.findAllByRole('button', { name: countryName });
+  await screen.findAllByRole('button', { name: countryName }, { timeout: 5000 });
 
   vi.useFakeTimers();
   try {
